@@ -354,11 +354,21 @@ class BTCETH_CMC20_Trader:
             except BinanceAPIException:
                 return None
 
-    def execute_market_order(self, symbol: str, side: str, quantity: float, quote_currency: str = "USDC") -> bool:
+    def execute_market_order(self, symbol: str, side: str, quantity: float, quote_currency: str = "USDC",
+                             dry_run: bool = False) -> bool:
         """Виконує ринковий ордер (для сум >$5)"""
         try:
+            if dry_run:
+                print(f"[DRY RUN] MARKET {side} {quantity} {symbol}...")
+                return True
+
             pair = f"{symbol}{quote_currency}"
             info = self.client.get_symbol_info(pair)
+
+            if not info:
+                print(f"❌ Символ {pair} не знайдено")
+                return False
+
             step_size = None
 
             for f in info['filters']:
@@ -384,19 +394,52 @@ class BTCETH_CMC20_Trader:
 
         except BinanceAPIException as e:
             print(f"❌ Помилка ордеру {symbol}: {e}")
+            print(f"   Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
+            return False
+        except Exception as e:
+            print(f"❌ Невідома помилка: {e}")
+            traceback.print_exc()
             return False
 
-    def execute_convert(self, from_asset: str, to_asset: str, amount: float) -> bool:
+    def execute_convert(self, from_asset: str, to_asset: str, amount: float, dry_run: bool = False) -> bool:
         """Виконує конвертацію через Binance Convert API"""
         try:
+            if dry_run:
+                print(f"[DRY RUN] Конвертація {amount:.8f} {from_asset} → {to_asset}...")
+                return True
+
             print(f"🔄 Конвертація {amount:.8f} {from_asset} → {to_asset}...")
 
-            # Використовуємо Binance Convert API
-            result = self.client.convert_asset(
-                fromAsset=from_asset,
-                toAsset=to_asset,
-                fromAmount=amount
-            )
+            # ⚠️ ВАЖЛИВО: Binance Convert API може мати інший метод залежно від версії бібліотеки
+            # Варіант 1: Для python-binance >= 1.0.16
+            try:
+                result = self.client.convert_request_quote(
+                    fromAsset=from_asset,
+                    toAsset=to_asset,
+                    fromAmount=amount
+                )
+
+                if result and 'quoteId' in result:
+                    # Підтверджуємо конвертацію
+                    confirm = self.client.convert_accept_quote(quoteId=result['quoteId'])
+
+                    if confirm and confirm.get('status') == 'SUCCESS':
+                        print(f"✅ Конвертацію виконано успішно!")
+                        print(f"   Quote ID: {result['quoteId']}")
+                        print(f"   Конвертовано: {amount} {from_asset}")
+                        print(f"   Отримано: {result.get('toAmount', 'N/A')} {to_asset}")
+                        return True
+                    else:
+                        print(f"❌ Помилка підтвердження конвертації")
+                        return False
+            except AttributeError:
+                # Варіант 2: Для старіших версій або альтернативного API
+                print("⚠️ convert_request_quote недоступний, пробуємо convert_asset...")
+                result = self.client.convert_asset(
+                    fromAsset=from_asset,
+                    toAsset=to_asset,
+                    fromAmount=amount
+                )
 
             if result and result.get('orderId'):
                 print(f"✅ Конвертацію виконано успішно!")
@@ -410,28 +453,40 @@ class BTCETH_CMC20_Trader:
 
         except BinanceAPIException as e:
             print(f"❌ Помилка конвертації {from_asset} → {to_asset}: {e}")
+            print(f"   Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
+            print(f"   Error message: {e.message if hasattr(e, 'message') else str(e)}")
             return False
         except Exception as e:
             print(f"❌ Невідома помилка конвертації: {e}")
+            traceback.print_exc()
             return False
 
     def calculate_rebalancing_orders(self, current_balances: dict, target_allocation: dict,
                                      total_portfolio_value: float) -> dict:
-        """Розраховує необхідні операції для ребалансування (гібридна система)"""
+        """
+        Розширена логіка з урахуванням комісій та мінімальних балансів.
+
+        ВАЖЛИВІ ЗМІНИ:
+        1. Резерв на комісії 1% (0.1% Binance + запас)
+        2. Мінімальний залишок USDC для наступних операцій
+        3. Пріоритетність продажу перед купівлею
+        4. Перевірка достатності коштів для кожної операції
+        """
         operations = {
-            'sell_orders': {},  # Продаж через market orders (>$5)
-            'sell_convert': {},  # Продаж через convert (<=$5)
-            'buy_orders': {},  # Купівля через market orders (>$5)
-            'buy_convert': {}  # Купівля через convert (<=$5)
+            'sell_orders': {},
+            'sell_convert': {},
+            'buy_orders': {},
+            'buy_convert': {}
         }
 
-        THRESHOLD = 5.0  # Поріг для вибору між ордерами та конвертацією
+        THRESHOLD = 5.0  # Поріг для вибору між market/convert
+        FEE_RESERVE = 0.01  # 1% резерв на комісії
+        MIN_USDC_RESERVE = 1.0  # Мінімальний залишок USDC після всіх операцій
 
-        print(f"\n💵 Розрахунок операцій для ребалансування:")
-        print(f"📊 Поріг: ордери для сум >${THRESHOLD}$, конвертація для сум <=${THRESHOLD}$")
+        print(f"\n💵 Розрахунок операцій для ребалансування (з резервом на комісії {FEE_RESERVE * 100}%)")
         print("-" * 80)
 
-        # Визначаємо, який стейблкоїн використовувати
+        # Визначаємо quote currency
         quote_currency = None
         quote_balance = 0
 
@@ -445,11 +500,37 @@ class BTCETH_CMC20_Trader:
         if not quote_currency:
             quote_currency = 'USDC'
             quote_balance = 0
-            print(f"⚠️ Немає стейблкоїнів, використовуємо {quote_currency} (буде поповнено з продажу)")
+            print(f"⚠️ Немає стейблкоїнів, використовуємо {quote_currency}")
         else:
             print(f"💰 Поточний баланс {quote_currency}: ${quote_balance:.2f}")
 
-        # Розраховуємо всі операції
+        def can_place_market(pair: str, quantity: float, value_usdc: float) -> (bool, str):
+            """Перевіряє чи можна поставити market order"""
+            try:
+                info = self.client.get_symbol_info(pair)
+                if not info:
+                    return False, "no_symbol_info"
+
+                step_size = None
+                min_notional = None
+
+                for f in info.get('filters', []):
+                    if f.get('filterType') == 'LOT_SIZE':
+                        step_size = float(f.get('stepSize', '0'))
+                    elif f.get('filterType') == 'MIN_NOTIONAL':
+                        min_notional = float(f.get('minNotional', f.get('notional', 0) or 0))
+
+                if step_size and quantity < step_size:
+                    return False, f"below_lot_size({quantity:.8f}<{step_size})"
+
+                if min_notional and value_usdc < min_notional:
+                    return False, f"below_min_notional(${value_usdc:.2f}<{min_notional})"
+
+                return True, "ok"
+            except Exception as e:
+                return False, f"symbol_info_error:{e}"
+
+        # ✅ ЕТАП 1: Розраховуємо ПРОДАЖІ (щоб отримати USDC)
         total_sell_value = 0
         total_buy_value = 0
 
@@ -457,83 +538,157 @@ class BTCETH_CMC20_Trader:
             current_value = current_balances.get(symbol, {}).get('usdc_value', 0)
             current_quantity = current_balances.get(symbol, {}).get('total', 0)
             target_value = target_data['target_value']
-
             difference_value = target_value - current_value
 
             if abs(difference_value) < 1:
                 continue
 
-            # Отримуємо ціну для розрахунку кількості
             price = self.get_binance_price(symbol)
             if price == 0:
                 continue
 
-            if difference_value > 0:
-                # КУПІВЛЯ
-                quantity = difference_value / price
-                total_buy_value += difference_value
+            # ✅ ПРОДАЖ (спочатку рахуємо всі продажі)
+            if difference_value < 0:
+                sell_value = abs(difference_value)
+                quantity = sell_value / price
+                total_sell_value += sell_value
 
-                if difference_value > THRESHOLD:
-                    # Великі суми -> market order
-                    operations['buy_orders'][symbol] = {
-                        'quantity': quantity,
-                        'value_usdc': difference_value,
-                        'price': price,
-                        'quote_currency': quote_currency
-                    }
-                    print(f"🟢 MARKET BUY {symbol}: {quantity:,.8f} токенів на ${difference_value:,.2f}")
-                else:
-                    # Малі суми -> convert
-                    operations['buy_convert'][symbol] = {
-                        'from_asset': quote_currency,
-                        'to_asset': symbol,
-                        'amount': difference_value,
-                        'type': 'convert'
-                    }
-                    print(f"🔵 CONVERT {quote_currency}→{symbol}: ${difference_value:,.2f}")
-            else:
-                # ПРОДАЖ
-                quantity = abs(difference_value) / price
-                total_sell_value += abs(difference_value)
+                pair = f"{symbol}{quote_currency}"
+                can_market, reason = can_place_market(pair, quantity, sell_value)
 
-                if abs(difference_value) > THRESHOLD:
-                    # Великі суми -> market order
+                if sell_value > THRESHOLD and can_market:
                     operations['sell_orders'][symbol] = {
                         'quantity': quantity,
-                        'value_usdc': abs(difference_value),
+                        'value_usdc': sell_value,
                         'price': price,
-                        'quote_currency': quote_currency
+                        'quote_currency': quote_currency,
+                        'reason': reason
                     }
-                    print(f"🔴 MARKET SELL {symbol}: {quantity:,.8f} токенів на ${abs(difference_value):,.2f}")
+                    print(f"🔴 MARKET SELL {symbol}: {quantity:,.8f} токенів на ${sell_value:,.2f}")
                 else:
-                    # Малі суми -> convert
                     operations['sell_convert'][symbol] = {
                         'from_asset': symbol,
                         'to_asset': quote_currency,
-                        'amount': abs(difference_value),
+                        'amount': sell_value,
                         'current_quantity': current_quantity,
-                        'type': 'convert'
+                        'type': 'convert',
+                        'reason': reason
                     }
-                    print(f"🟠 CONVERT {symbol}→{quote_currency}: ${abs(difference_value):,.2f}")
+                    print(f"🟠 CONVERT {symbol}→{quote_currency}: ${sell_value:,.2f}")
 
-        # Перевірка балансу
-        if any(operations.values()):
-            available_after_sell = quote_balance + total_sell_value
-            print(f"\n💰 Баланс після продажу: ${available_after_sell:.2f}")
-            print(f"📊 Потрібно для купівлі: ${total_buy_value:.2f}")
+        # ✅ ЕТАП 2: Розраховуємо доступні кошти після продажу
+        # Враховуємо комісії при продажу
+        available_after_sell = quote_balance + (total_sell_value * (1 - FEE_RESERVE))
 
-            if available_after_sell >= total_buy_value:
-                print(f"✅ Достатньо коштів для ребалансування")
+        print(f"\n💰 Баланс {quote_currency}:")
+        print(f"   Поточний: ${quote_balance:.2f}")
+        print(f"   Від продажу: ${total_sell_value:.2f} (після комісій: ${total_sell_value * (1 - FEE_RESERVE):.2f})")
+        print(f"   Доступно для купівлі: ${available_after_sell:.2f}")
+        print(f"   Резерв на комісії: {FEE_RESERVE * 100}%")
+
+        # ✅ ЕТАП 3: Розраховуємо КУПІВЛІ (з урахуванням доступних коштів)
+        buy_operations_temp = []  # Тимчасовий список для сортування за пріоритетом
+
+        for symbol, target_data in target_allocation.items():
+            current_value = current_balances.get(symbol, {}).get('usdc_value', 0)
+            target_value = target_data['target_value']
+            difference_value = target_value - current_value
+
+            if difference_value <= 0:
+                continue
+
+            price = self.get_binance_price(symbol)
+            if price == 0:
+                continue
+
+            # Враховуємо комісії при купівлі
+            needed_usdc = difference_value * (1 + FEE_RESERVE)
+            quantity = difference_value / price
+
+            buy_operations_temp.append({
+                'symbol': symbol,
+                'quantity': quantity,
+                'needed_usdc': needed_usdc,
+                'difference_value': difference_value,
+                'price': price,
+                'priority': target_data.get('rank', 999)  # Пріоритет за рангом CMC
+            })
+
+        # Сортуємо купівлі за пріоритетом (вища капіталізація = вищий пріоритет)
+        buy_operations_temp.sort(key=lambda x: x['priority'])
+
+        # ✅ ЕТАП 4: Розподіляємо купівлі з урахуванням доступних коштів
+        remaining_balance = available_after_sell - MIN_USDC_RESERVE
+        total_buy_allocated = 0
+
+        for op in buy_operations_temp:
+            symbol = op['symbol']
+            needed = op['needed_usdc']
+
+            # Якщо недостатньо коштів - пропорційно зменшуємо суму
+            if needed > remaining_balance:
+                if remaining_balance < 1.0:  # Занадто мало коштів
+                    print(
+                        f"⚠️ Пропуск {symbol}: недостатньо коштів (потрібно ${needed:.2f}, є ${remaining_balance:.2f})")
+                    continue
+
+                # Зменшуємо суму пропорційно
+                scale_factor = remaining_balance / needed
+                op['needed_usdc'] = remaining_balance
+                op['difference_value'] = op['difference_value'] * scale_factor
+                op['quantity'] = op['quantity'] * scale_factor
+                print(f"⚠️ Зменшено купівлю {symbol} на {(1 - scale_factor) * 100:.1f}% через нестачу коштів")
+
+            pair = f"{symbol}{quote_currency}"
+            can_market, reason = can_place_market(pair, op['quantity'], op['difference_value'])
+
+            if op['difference_value'] > THRESHOLD and can_market:
+                operations['buy_orders'][symbol] = {
+                    'quantity': op['quantity'],
+                    'value_usdc': op['difference_value'],
+                    'price': op['price'],
+                    'quote_currency': quote_currency,
+                    'reason': reason
+                }
+                print(f"🟢 MARKET BUY {symbol}: {op['quantity']:,.8f} токенів на ${op['difference_value']:,.2f}")
             else:
-                print(f"⚠️ Недостатньо коштів! Бракує: ${total_buy_value - available_after_sell:.2f}")
+                operations['buy_convert'][symbol] = {
+                    'from_asset': quote_currency,
+                    'to_asset': symbol,
+                    'amount': op['difference_value'],
+                    'type': 'convert',
+                    'reason': reason
+                }
+                print(f"🔵 CONVERT {quote_currency}→{symbol}: ${op['difference_value']:,.2f}")
+
+            remaining_balance -= op['needed_usdc']
+            total_buy_allocated += op['difference_value']
+
+        # ✅ ПІДСУМОК
+        print(f"\n📊 ПІДСУМОК РОЗРАХУНКІВ:")
+        print(f"   Продаж: ${total_sell_value:.2f}")
+        print(f"   Купівля: ${total_buy_allocated:.2f}")
+        print(f"   Залишок {quote_currency}: ${max(0, remaining_balance):.2f}")
+
+        if remaining_balance < 0:
+            print(f"   ⚠️ УВАГА: Бракує ${abs(remaining_balance):.2f}!")
+        else:
+            print(f"   ✅ Достатньо коштів")
 
         print("-" * 80)
         return operations
 
     def execute_portfolio_rebalance(self, dry_run=False):
-        """Виконує ребалансування портфеля (гібридна система: ордери + конвертація)"""
+        """
+        Виконує ребалансування з покращеною логікою:
+        1. Отримує поточні баланси
+        2. Виконує ВСІ продажі
+        3. Оновлює баланс
+        4. Виконує купівлі з перевіркою коштів
+        """
         print("\n" + "=" * 80)
         print(f"🚀 ПОЧАТОК РЕБАЛАНСУВАННЯ ПОРТФЕЛЯ (BTC + ETH)")
+        print(f"⚠️ Режим: {'DRY RUN (тестовий)' if dry_run else '🔴 РЕАЛЬНІ ОПЕРАЦІЇ! 🔴'}")
         print(f"🕐 Час: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print("=" * 80)
 
@@ -541,13 +696,13 @@ class BTCETH_CMC20_Trader:
 
         if total_portfolio_value <= 0:
             print("❌ Портфель порожній")
-            return
+            return {"error": "Portfolio is empty"}
 
         target_allocation = self.display_btc_eth_allocation_chart(total_portfolio_value)
 
         if not target_allocation:
             print("❌ Не вдалося отримати дані з CoinMarketCap")
-            return
+            return {"error": "Failed to fetch CMC data"}
 
         self.display_rebalancing_table(current_balances, target_allocation, total_portfolio_value)
 
@@ -555,118 +710,181 @@ class BTCETH_CMC20_Trader:
 
         if not any(operations.values()):
             print("✅ Портфель вже збалансований")
-            return
+            return {"status": "balanced", "message": "Portfolio already balanced"}
 
         if dry_run:
             print("\n" + "=" * 80)
             print("⚠️ DRY RUN MODE - операції НЕ будуть виконані")
             print("=" * 80)
+            return {
+                "status": "dry_run",
+                "operations": operations,
+                "message": "Dry run completed"
+            }
 
-            total_ops = sum(len(ops) for ops in operations.values())
-            print(f"\n📋 Всього заплановано операцій: {total_ops}")
+        # ✅ РЕАЛЬНІ ОПЕРАЦІЇ З ПОКРАЩЕНОЮ ЛОГІКОЮ
+        print("\n" + "=" * 80)
+        print("🔴 ПОЧИНАЄМО ВИКОНАННЯ ОПЕРАЦІЙ (РЕАЛЬНІ ТРЕЙДИ!) 🔴")
+        print("=" * 80)
 
-            if operations['sell_orders']:
-                print(f"\n🔴 Market Sell ордери ({len(operations['sell_orders'])}):")
-                for symbol, data in operations['sell_orders'].items():
-                    print(f"   Продати {data['quantity']:,.8f} {symbol} ≈ ${data['value_usdc']:,.2f}")
+        results = {
+            "sell_orders": [],
+            "sell_convert": [],
+            "buy_orders": [],
+            "buy_convert": []
+        }
 
-            if operations['sell_convert']:
-                print(f"\n🟠 Convert Sell операції ({len(operations['sell_convert'])}):")
-                for symbol, data in operations['sell_convert'].items():
-                    print(f"   Конвертувати {symbol}→{data['to_asset']} ≈ ${data['amount']:,.2f}")
-
-            if operations['buy_orders']:
-                print(f"\n🟢 Market Buy ордери ({len(operations['buy_orders'])}):")
-                for symbol, data in operations['buy_orders'].items():
-                    print(f"   Купити {data['quantity']:,.8f} {symbol} ≈ ${data['value_usdc']:,.2f}")
-
-            if operations['buy_convert']:
-                print(f"\n🔵 Convert Buy операції ({len(operations['buy_convert'])}):")
-                for symbol, data in operations['buy_convert'].items():
-                    print(f"   Конвертувати {data['from_asset']}→{symbol} ≈ ${data['amount']:,.2f}")
-
-            print("\n💡 Щоб виконати реальні операції, встановіть dry_run=False")
-        else:
+        # ✅ ЕТАП 1: ВИКОНУЄМО ВСІ ПРОДАЖІ
+        if operations['sell_orders'] or operations['sell_convert']:
             print("\n" + "=" * 80)
-            print("🔄 ПОЧИНАЄМО ВИКОНАННЯ ОПЕРАЦІЙ (РЕАЛЬНІ ТРЕЙДИ!)")
+            print("📤 ЕТАП 1: ПРОДАЖ ТОКЕНІВ")
             print("=" * 80)
 
-            # ЕТАП 1: ПРОДАЖ (спочатку market orders, потім convert)
-            if operations['sell_orders'] or operations['sell_convert']:
-                print("\n" + "=" * 80)
-                print("📤 ЕТАП 1: ПРОДАЖ ТОКЕНІВ")
-                print("=" * 80)
+            # 1.1 Market Sell Orders
+            if operations['sell_orders']:
+                print("\n🔴 Виконання Market Sell ордерів:")
+                for symbol, data in operations['sell_orders'].items():
+                    success = self.execute_market_order(
+                        symbol=symbol,
+                        side='SELL',
+                        quantity=data['quantity'],
+                        quote_currency=data['quote_currency'],
+                        dry_run=False
+                    )
+                    results['sell_orders'].append({
+                        "symbol": symbol,
+                        "success": success,
+                        "quantity": data['quantity']
+                    })
+                    if success:
+                        time.sleep(1)
 
-                # 1.1 Market Sell Orders (великі суми)
-                if operations['sell_orders']:
-                    print("\n🔴 Виконання Market Sell ордерів:")
-                    print("-" * 80)
-                    for symbol, data in operations['sell_orders'].items():
-                        success = self.execute_market_order(
-                            symbol=symbol,
-                            side='SELL',
-                            quantity=data['quantity'],
-                            quote_currency=data['quote_currency']
-                        )
-                        if success:
-                            time.sleep(1)
+            # 1.2 Convert Sell
+            if operations['sell_convert']:
+                print("\n🟠 Виконання Convert Sell операцій:")
+                for symbol, data in operations['sell_convert'].items():
+                    success = self.execute_convert(
+                        from_asset=data['from_asset'],
+                        to_asset=data['to_asset'],
+                        amount=data['current_quantity'],
+                        dry_run=False
+                    )
+                    results['sell_convert'].append({
+                        "symbol": symbol,
+                        "success": success
+                    })
+                    if success:
+                        time.sleep(2)
 
-                # 1.2 Convert Sell (малі суми)
-                if operations['sell_convert']:
-                    print("\n🟠 Виконання Convert Sell операцій:")
-                    print("-" * 80)
-                    for symbol, data in operations['sell_convert'].items():
-                        token_price = current_balances.get(symbol, {}).get('usdc_value', 0) / max(
-                            current_balances.get(symbol, {}).get('total', 1), 1)
-                        quantity_to_convert = data['amount'] / token_price if token_price > 0 else 0
+        # ✅ ЕТАП 1.5: ОНОВЛЮЄМО БАЛАНС ПІСЛЯ ПРОДАЖУ
+        print("\n" + "=" * 80)
+        print("🔄 ОНОВЛЕННЯ БАЛАНСУ ПІСЛЯ ПРОДАЖУ")
+        print("=" * 80)
 
-                        if quantity_to_convert > 0:
-                            success = self.execute_convert(
-                                from_asset=data['from_asset'],
-                                to_asset=data['to_asset'],
-                                amount=quantity_to_convert
-                            )
-                            if success:
-                                time.sleep(2)
+        time.sleep(2)  # Даємо час Binance оновити баланси
+        current_balances, _ = self.get_all_binance_balances()
 
-            # ЕТАП 2: КУПІВЛЯ (спочатку market orders, потім convert)
-            if operations['buy_orders'] or operations['buy_convert']:
-                print("\n" + "=" * 80)
-                print("📥 ЕТАП 2: КУПІВЛЯ ТОКЕНІВ")
-                print("=" * 80)
+        # Визначаємо доступні кошти
+        quote_currency = 'USDC'
+        for stable in ['USDC', 'USDT', 'BUSD', 'FDUSD']:
+            if current_balances.get(stable, {}).get('total', 0) > 0.1:
+                quote_currency = stable
+                break
 
-                # 2.1 Market Buy Orders (великі суми)
-                if operations['buy_orders']:
-                    print("\n🟢 Виконання Market Buy ордерів:")
-                    print("-" * 80)
-                    for symbol, data in operations['buy_orders'].items():
-                        success = self.execute_market_order(
-                            symbol=symbol,
-                            side='BUY',
-                            quantity=data['quantity'],
-                            quote_currency=data['quote_currency']
-                        )
-                        if success:
-                            time.sleep(1)
+        available_balance = current_balances.get(quote_currency, {}).get('total', 0)
+        print(f"💰 Доступний баланс {quote_currency} після продажу: ${available_balance:.2f}")
 
-                # 2.2 Convert Buy (малі суми)
-                if operations['buy_convert']:
-                    print("\n🔵 Виконання Convert Buy операцій:")
-                    print("-" * 80)
-                    for symbol, data in operations['buy_convert'].items():
-                        success = self.execute_convert(
-                            from_asset=data['from_asset'],
-                            to_asset=data['to_asset'],
-                            amount=data['amount']
-                        )
-                        if success:
-                            time.sleep(2)
+        # ✅ ЕТАП 2: ВИКОНУЄМО КУПІВЛІ З ПЕРЕВІРКОЮ БАЛАНСУ
+        if operations['buy_orders'] or operations['buy_convert']:
+            print("\n" + "=" * 80)
+            print("📥 ЕТАП 2: КУПІВЛЯ ТОКЕНІВ")
+            print("=" * 80)
+
+            # 2.1 Market Buy Orders
+            if operations['buy_orders']:
+                print("\n🟢 Виконання Market Buy ордерів:")
+                for symbol, data in operations['buy_orders'].items():
+                    needed = data['value_usdc'] * 1.01  # +1% на комісії
+
+                    # ✅ ПЕРЕВІРКА ПЕРЕД КУПІВЛЕЮ
+                    if needed > available_balance:
+                        print(
+                            f"⚠️ Пропуск {symbol}: недостатньо коштів (потрібно ${needed:.2f}, є ${available_balance:.2f})")
+                        results['buy_orders'].append({
+                            "symbol": symbol,
+                            "success": False,
+                            "error": "Insufficient balance"
+                        })
+                        continue
+
+                    success = self.execute_market_order(
+                        symbol=symbol,
+                        side='BUY',
+                        quantity=data['quantity'],
+                        quote_currency=data['quote_currency'],
+                        dry_run=False
+                    )
+
+                    if success:
+                        available_balance -= needed
+                        print(f"   💰 Залишок {quote_currency}: ${available_balance:.2f}")
+
+                    results['buy_orders'].append({
+                        "symbol": symbol,
+                        "success": success,
+                        "quantity": data['quantity']
+                    })
+
+                    if success:
+                        time.sleep(1)
+
+            # 2.2 Convert Buy
+            if operations['buy_convert']:
+                print("\n🔵 Виконання Convert Buy операцій:")
+                for symbol, data in operations['buy_convert'].items():
+                    needed = data['amount'] * 1.01
+
+                    # ✅ ПЕРЕВІРКА ПЕРЕД КУПІВЛЕЮ
+                    if needed > available_balance:
+                        print(
+                            f"⚠️ Пропуск {symbol}: недостатньо коштів (потрібно ${needed:.2f}, є ${available_balance:.2f})")
+                        results['buy_convert'].append({
+                            "symbol": symbol,
+                            "success": False,
+                            "error": "Insufficient balance"
+                        })
+                        continue
+
+                    success = self.execute_convert(
+                        from_asset=data['from_asset'],
+                        to_asset=data['to_asset'],
+                        amount=data['amount'],
+                        dry_run=False
+                    )
+
+                    if success:
+                        available_balance -= needed
+                        print(f"   💰 Залишок {quote_currency}: ${available_balance:.2f}")
+
+                    results['buy_convert'].append({
+                        "symbol": symbol,
+                        "success": success
+                    })
+
+                    if success:
+                        time.sleep(2)
 
         print("\n" + "=" * 80)
         print("✅ РЕБАЛАНСУВАННЯ ЗАВЕРШЕНО")
+        print(f"💰 Кінцевий баланс {quote_currency}: ${available_balance:.2f}")
         print("=" * 80)
 
-    # всередині класу BTCETH_CMC20_Trader
+        return {
+            "status": "completed",
+            "results": results,
+            "final_balance": available_balance,
+            "timestamp": datetime.now().isoformat()
+        }
 
     def _place_market_order(self, side: str, pair: str, quantity: float, dry_run: bool = True) -> bool:
         """

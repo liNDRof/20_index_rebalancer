@@ -163,6 +163,7 @@ def get_status(request):
         'remaining': remaining,
         'portfolio': last_portfolio,
         'rebalance': last_rebalance_info,
+        'dry_run_mode': DRY_RUN_MODE
     })
 
 
@@ -345,34 +346,144 @@ def calculate_rebalancing_orders(self, current_balances: dict, target_allocation
     return operations
 
 
-
+# ============================================
+# ВИПРАВЛЕННЯ 1: manual_rebalance (рядок ~288)
+# ============================================
 @login_required
 def manual_rebalance(request):
-    global last_portfolio, last_rebalance_info, next_run_time
+    global last_portfolio, last_rebalance_info, next_run_time, DRY_RUN_MODE
 
     try:
         print("DEBUG: manual_rebalance called by", request.user)
         trader = BTCETH_CMC20_Trader()
         print("DEBUG: trader instance created")
+
+        # Отримуємо поточні баланси
         balances, total = trader.get_all_binance_balances()
         print("DEBUG: balances fetched, total =", total)
         last_portfolio = balances
 
-        rebalance_result = trader.execute_portfolio_rebalance(dry_run=True)
+        # ✅ Використовуємо глобальний режим
+        print(f"DEBUG: Executing rebalance with dry_run={DRY_RUN_MODE}")
+        rebalance_result = trader.execute_portfolio_rebalance(dry_run=DRY_RUN_MODE)
         print("DEBUG: execute_portfolio_rebalance returned:", repr(rebalance_result))
-        # якщо None -> покажемо зрозумілий dict
-        last_rebalance_info = rebalance_result if rebalance_result is not None else {"note": "no result (None)"}
 
+        last_rebalance_info = rebalance_result if rebalance_result is not None else {"note": "no result (None)"}
         next_run_time = time.time() + trader.update_interval
 
         return JsonResponse({
             "status": "ok",
-            "rebalance": last_rebalance_info
+            "rebalance": last_rebalance_info,
+            "dry_run": DRY_RUN_MODE
         })
 
     except Exception as e:
         traceback.print_exc()
         last_rebalance_info = {"error": str(e), "trace": traceback.format_exc()}
         return JsonResponse({"status": "error", "error": str(e), "trace": traceback.format_exc()})
+
+
+# ============================================
+# ВИПРАВЛЕННЯ 2: trader_loop (рядок ~105)
+# ============================================
+def trader_loop():
+    global trader_running, next_run_time, last_portfolio, last_rebalance_info, DRY_RUN_MODE
+
+    try:
+        trader = BTCETH_CMC20_Trader()
+        print("DEBUG: trader_loop created trader, interval:", trader.update_interval)
+    except Exception:
+        print("ERROR: cannot create trader in trader_loop")
+        traceback.print_exc()
+        trader_running = False
+        return
+
+    interval = trader.update_interval
+
+    while trader_running:
+        try:
+            print("🔍 Запуск ребалансування (background)...")
+            balances, total = trader.get_all_binance_balances()
+            print("DEBUG: background balances total:", total)
+            last_portfolio = balances
+
+            # ✅ Використовуємо глобальний режим
+            print(f"DEBUG: Background rebalance with dry_run={DRY_RUN_MODE}")
+            rebalance_result = trader.execute_portfolio_rebalance(dry_run=DRY_RUN_MODE)
+            print("DEBUG: background rebalance_result:", repr(rebalance_result))
+            last_rebalance_info = rebalance_result if rebalance_result is not None else {"note": "no result (None)"}
+
+            print("✅ Ребалансування завершено (background).")
+
+            # Встановлюємо час наступного запуску
+            next_run_time = time.time() + interval
+
+        except Exception as e:
+            print("❌ Помилка у трейдері (background):", e)
+            traceback.print_exc()
+            last_rebalance_info = {"error": str(e), "trace": traceback.format_exc()}
+
+        # ✅ Додано sleep для очікування між циклами
+        print(f"😴 Очікування {interval} секунд до наступного ребалансування...")
+        time.sleep(interval)
+
+    print("⛔ trader_loop завершено")
+
+
+# ============================================
+# ВИПРАВЛЕННЯ 3: Додати можливість вибору режиму
+# ============================================
+# Додайте глобальну змінну для контролю режиму:
+DRY_RUN_MODE = False  # False = реальні операції, True = тестовий режим
+
+
+# Оновіть manual_rebalance:
+@login_required
+def manual_rebalance(request):
+    global last_portfolio, last_rebalance_info, next_run_time, DRY_RUN_MODE
+
+    try:
+        trader = BTCETH_CMC20_Trader()
+        balances, total = trader.get_all_binance_balances()
+        last_portfolio = balances
+
+        # Використовуємо глобальний режим
+        rebalance_result = trader.execute_portfolio_rebalance(dry_run=DRY_RUN_MODE)
+
+        last_rebalance_info = rebalance_result if rebalance_result is not None else {"note": "no result (None)"}
+        next_run_time = time.time() + trader.update_interval
+
+        return JsonResponse({
+            "status": "ok",
+            "rebalance": last_rebalance_info,
+            "dry_run": DRY_RUN_MODE  # Показуємо режим
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        return JsonResponse({"status": "error", "error": str(e)})
+
+
+# ============================================
+# ВИПРАВЛЕННЯ 4: Додати endpoint для зміни режиму
+# ============================================
+@login_required
+def toggle_dry_run(request):
+    """Перемикає між тестовим та реальним режимом"""
+    global DRY_RUN_MODE
+
+    mode = request.GET.get('mode', None)
+    if mode == 'real':
+        DRY_RUN_MODE = False
+    elif mode == 'test':
+        DRY_RUN_MODE = True
+    else:
+        DRY_RUN_MODE = not DRY_RUN_MODE
+
+    return JsonResponse({
+        'status': 'ok',
+        'dry_run_mode': DRY_RUN_MODE,
+        'message': f"Режим: {'ТЕСТОВИЙ' if DRY_RUN_MODE else 'РЕАЛЬНІ ОПЕРАЦІЇ'}"
+    })
 
 

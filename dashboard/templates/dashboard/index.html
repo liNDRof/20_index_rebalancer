@@ -27,6 +27,25 @@
       margin-bottom: 25px;
     }
 
+    /* Режим роботи */
+    .mode-indicator {
+      display: inline-block;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      margin-left: 15px;
+    }
+    .mode-test {
+      background: #fef3c7;
+      color: #92400e;
+      border: 2px solid #f59e0b;
+    }
+    .mode-real {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 2px solid #ef4444;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -54,9 +73,15 @@
       transition: 0.2s;
     }
 
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
     #rebalanceBtn { background: #f59e0b; color: white; }
     #refreshBtn { background: #3b82f6; color: white; }
     #stopBtn { background: #ef4444; color: white; }
+    #toggleModeBtn { background: #8b5cf6; color: white; }
     #saveDefaultIntervalBtn, #setNextRebalanceBtn {
       background: #e5e7eb;
       border: 1px solid #d1d5db;
@@ -84,6 +109,8 @@
       text-align: left;
       white-space: pre-wrap;
       word-break: break-word;
+      max-height: 400px;
+      overflow-y: auto;
     }
 
     .timer-info {
@@ -92,7 +119,6 @@
       color: #374151;
     }
 
-    /* нові стилі для розміщення кнопок у заголовку портфеля */
     .portfolio-header {
       display: flex;
       align-items: center;
@@ -103,24 +129,61 @@
       gap: 8px;
       align-items: center;
     }
-    /* трохи менші кнопки у тулбарі */
     .portfolio-toolbar button {
       padding: 6px 12px;
       font-size: 14px;
       margin: 0;
     }
+
+    .warning-box {
+      background: #fef3c7;
+      border: 2px solid #f59e0b;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .danger-box {
+      background: #fee2e2;
+      border: 2px solid #ef4444;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>💹 Crypto Trader Dashboard</h1>
+    <h1>
+      💹 Crypto Trader Dashboard
+      <span id="modeIndicator" class="mode-indicator mode-test">⚠️ ТЕСТОВИЙ РЕЖИМ</span>
+    </h1>
+
+    <!-- Блок вибору режиму -->
+    <div class="block">
+      <h2 class="section-title">🎛️ Налаштування режиму</h2>
+
+      <div id="testWarning" class="warning-box" style="display:block;">
+        <strong>⚠️ Увага:</strong> Зараз активний <strong>ТЕСТОВИЙ РЕЖИМ</strong>.
+        Всі операції симулюються, реальні трейди не виконуються.
+      </div>
+
+      <div id="realWarning" class="danger-box" style="display:none;">
+        <strong>🔴 УВАГА!</strong> Зараз активний <strong>РЕЖИМ РЕАЛЬНИХ ОПЕРАЦІЙ</strong>.
+        Всі операції будуть виконуватись на реальному рахунку з реальними коштами!
+      </div>
+
+      <button id="toggleModeBtn">🔄 Перемкнути режим</button>
+      <p style="color:#666; font-size:14px; margin-top:10px;">
+        Поточний режим: <strong id="currentMode">ТЕСТОВИЙ</strong>
+      </p>
+    </div>
 
     <!-- Блок налаштування таймерів -->
     <div class="block">
       <h2 class="section-title">⏱️ Налаштування таймерів</h2>
 
       <div>
-        <h4>🔁 Дефолтний інтервал ребалансування</h4>
+        <h4>📅 Дефолтний інтервал ребалансування</h4>
         <label>Дні: <input id="defDays" type="number" min="0" value="0"></label>
         <label>Години: <input id="defHours" type="number" min="0" value="1"></label>
         <label>Хвилини: <input id="defMinutes" type="number" min="0" value="0"></label>
@@ -141,18 +204,18 @@
       </div>
     </div>
 
-    <!-- Блок поточного портфеля з кнопками всередині заголовка -->
+    <!-- Блок поточного портфеля -->
     <div class="block">
       <div class="portfolio-header">
         <h2 class="section-title" style="margin:0; padding:0;">📊 Поточний портфель</h2>
         <div class="portfolio-toolbar">
-          <button id="rebalanceBtn">🔁 Ребалансувати зараз</button>
-          <button id="refreshBtn">🔄 Оновити портфель</button>
+          <button id="rebalanceBtn">🔄 Ребалансувати зараз</button>
+          <button id="refreshBtn">🔃 Оновити портфель</button>
         </div>
       </div>
 
       <table id="portfolio">
-        <tr><th>Монета</th><th>Баланс</th></tr>
+        <tr><th>Монета</th><th>Баланс</th><th>Вартість USDC</th></tr>
       </table>
     </div>
 
@@ -164,11 +227,58 @@
   </div>
 
   <script>
-/* --- скрипт залишився незмінним (вставити ваш існуючий JS) --- */
 let remaining = 0;
 let defaultInterval = 3600;
 let timerPaused = false;
 let timerInterval = null;
+let isDryRun = true;
+
+// 🔄 Оновлення індикатора режиму
+function updateModeIndicator() {
+  const indicator = document.getElementById('modeIndicator');
+  const currentMode = document.getElementById('currentMode');
+  const testWarning = document.getElementById('testWarning');
+  const realWarning = document.getElementById('realWarning');
+
+  if (isDryRun) {
+    indicator.textContent = '⚠️ ТЕСТОВИЙ РЕЖИМ';
+    indicator.className = 'mode-indicator mode-test';
+    currentMode.textContent = 'ТЕСТОВИЙ';
+    testWarning.style.display = 'block';
+    realWarning.style.display = 'none';
+  } else {
+    indicator.textContent = '🔴 РЕАЛЬНІ ОПЕРАЦІЇ';
+    indicator.className = 'mode-indicator mode-real';
+    currentMode.textContent = 'РЕАЛЬНІ ОПЕРАЦІЇ';
+    testWarning.style.display = 'none';
+    realWarning.style.display = 'block';
+  }
+}
+
+// 🎛️ Перемикання режиму
+document.getElementById('toggleModeBtn').onclick = async () => {
+  const confirmed = confirm(
+    isDryRun
+      ? '⚠️ УВАГА! Ви збираєтесь перемкнутись на РЕЖИМ РЕАЛЬНИХ ОПЕРАЦІЙ!\n\nВсі наступні операції будуть виконуватись з реальними коштами!\n\nПродовжити?'
+      : 'Перемкнутись на тестовий режим?'
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/toggle_dry_run/?mode=${isDryRun ? 'real' : 'test'}`);
+    const data = await res.json();
+
+    if (data.status === 'ok') {
+      isDryRun = data.dry_run_mode;
+      updateModeIndicator();
+      alert(data.message);
+    }
+  } catch (err) {
+    console.error('Помилка перемикання режиму:', err);
+    alert('❌ Не вдалось перемкнути режим');
+  }
+};
 
 // 🪙 Оновлення портфеля
 async function fetchStatus(updatePortfolio = false) {
@@ -193,24 +303,44 @@ async function fetchStatus(updatePortfolio = false) {
   }
 }
 
-// 🪙 (інші функції: updatePortfolioTable, updateTimerDisplay, startTimer, onTimerEnd, кнопки і т.д.)
-// Для стислості залишаю тут тільки код який був у вас — вставити інші функції без змін.
 function updatePortfolioTable(portfolio) {
   const table = document.getElementById('portfolio');
-  table.innerHTML = "<tr><th>Монета</th><th>Баланс</th></tr>";
+  table.innerHTML = "<tr><th>Монета</th><th>Баланс</th><th>Вартість USDC</th></tr>";
+
+  let totalValue = 0;
+
   for (const [symbol, info] of Object.entries(portfolio)) {
     let balanceText = "";
+    let usdcValue = 0;
+
     if (typeof info === "object" && info !== null) {
       const free = parseFloat(info.free || 0);
       const locked = parseFloat(info.locked || 0);
       const total = free + locked;
-      balanceText = `${total.toFixed(6)} (вільно: ${free}, заблоковано: ${locked})`;
+      usdcValue = parseFloat(info.usdc_value || 0);
+      totalValue += usdcValue;
+
+      balanceText = `${total.toFixed(6)} (вільно: ${free.toFixed(6)})`;
     } else {
       balanceText = info;
     }
+
     table.insertAdjacentHTML('beforeend',
-      `<tr><td>${symbol}</td><td>${balanceText}</td></tr>`);
+      `<tr>
+        <td><strong>${symbol}</strong></td>
+        <td>${balanceText}</td>
+        <td>$${usdcValue.toFixed(2)}</td>
+      </tr>`
+    );
   }
+
+  table.insertAdjacentHTML('beforeend',
+    `<tr style="background:#f3f4f6; font-weight:bold;">
+      <td>РАЗОМ</td>
+      <td>-</td>
+      <td>$${totalValue.toFixed(2)}</td>
+    </tr>`
+  );
 }
 
 function updateTimerDisplay() {
@@ -238,7 +368,7 @@ function startTimer() {
 }
 
 async function onTimerEnd() {
-  document.getElementById('timer').textContent = "🔁 Виконується ребалансування...";
+  document.getElementById('timer').textContent = "🔄 Виконується ребалансування...";
   try {
     await fetch('/manual_rebalance/');
     await fetchStatus(true);
@@ -249,6 +379,7 @@ async function onTimerEnd() {
   updateTimerDisplay();
 }
 
+// Кнопки
 document.getElementById('stopBtn').onclick = () => {
   timerPaused = !timerPaused;
   const btn = document.getElementById('stopBtn');
@@ -281,34 +412,50 @@ document.getElementById('setNextRebalanceBtn').onclick = () => {
   alert(`⏱️ Наступне ребалансування через ${remaining} сек.`);
 };
 
-setInterval(() => fetchStatus(true), 10000);
-
-window.onload = async () => {
-  await fetchStatus(true);
-  remaining = defaultInterval;
-  updateTimerDisplay();
-  startTimer();
-};
 document.getElementById('rebalanceBtn').onclick = async () => {
+  const confirmed = confirm(
+    isDryRun
+      ? 'Виконати тестове ребалансування?'
+      : '🔴 УВАГА! Виконати РЕАЛЬНЕ ребалансування з реальними коштами?'
+  );
+
+  if (!confirmed) return;
+
   const btn = document.getElementById('rebalanceBtn');
   btn.disabled = true;
-  btn.textContent = "🔁 Ребалансування...";
+  btn.textContent = "🔄 Ребалансування...";
+
   try {
     const res = await fetch('/manual_rebalance/');
     const data = await res.json();
+
     if (data.status === "ok") {
       alert("✅ Ребалансування виконано!");
       await fetchStatus(true);
     } else {
-      alert("❌ Помилка: " + data.error);
+      alert("❌ Помилка: " + (data.error || 'Unknown error'));
     }
   } catch (err) {
     console.error(err);
-    alert("⚠️ Не вдалося виконати ребалансування.");
+    alert("⚠️ Не вдалось виконати ребалансування.");
   } finally {
     btn.disabled = false;
-    btn.textContent = "🔁 Ребалансувати зараз";
+    btn.textContent = "🔄 Ребалансувати зараз";
   }
+};
+
+document.getElementById('refreshBtn').onclick = () => fetchStatus(true);
+
+// Автооновлення кожні 10 секунд
+setInterval(() => fetchStatus(true), 10000);
+
+// Ініціалізація
+window.onload = async () => {
+  updateModeIndicator();
+  await fetchStatus(true);
+  remaining = defaultInterval;
+  updateTimerDisplay();
+  startTimer();
 };
   </script>
 </body>
