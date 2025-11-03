@@ -1,6 +1,7 @@
 # зверху файлу додай
 import traceback
 from django.shortcuts import render, redirect
+from django.utils.translation import gettext as _
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from trader.btceth_trader import BTCETH_CMC20_Trader
@@ -30,7 +31,7 @@ def login_view(request):
             response.set_cookie('is_logged_in', 'true', max_age=3600*24*7)  # cookie на 7 днів
             return response
         else:
-            return render(request, 'dashboard/login.html', {'error': 'Невірний логін або пароль'})
+            return render(request, 'dashboard/login.html', {'error': _('Invalid username or password')})
 
     return render(request, 'dashboard/login.html')
 
@@ -60,6 +61,18 @@ def logout_view(request):
     return response
 
 
+@login_required
+def profile_view(request):
+    message = None
+    if request.method == 'POST':
+        new_email = request.POST.get('email')
+        if new_email:
+            request.user.email = new_email
+            request.user.save()
+            message = _('Email updated')
+    return render(request, 'dashboard/profile.html', {'message': message})
+
+
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.shortcuts import render, redirect
@@ -74,17 +87,17 @@ def register_view(request):
 
         # Перевірка заповненості полів
         if not username or not email or not password1 or not password2:
-            return render(request, 'dashboard/register.html', {'error': 'Заповни всі поля'})
+            return render(request, 'dashboard/register.html', {'error': _('Please fill in all fields')})
 
         # Перевірка співпадіння паролів
         if password1 != password2:
-            return render(request, 'dashboard/register.html', {'error': 'Паролі не співпадають'})
+            return render(request, 'dashboard/register.html', {'error': _('Passwords do not match')})
 
         # Перевірка унікальності
         if User.objects.filter(username=username).exists():
-            return render(request, 'dashboard/register.html', {'error': 'Такий логін вже існує'})
+            return render(request, 'dashboard/register.html', {'error': _('This username already exists')})
         if User.objects.filter(email=email).exists():
-            return render(request, 'dashboard/register.html', {'error': 'Цей email вже зареєстровано'})
+            return render(request, 'dashboard/register.html', {'error': _('This email is already registered')})
 
         # Створення користувача
         user = User.objects.create_user(username=username, email=email, password=password1)

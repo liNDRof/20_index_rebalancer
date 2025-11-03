@@ -1,8 +1,7 @@
-<!DOCTYPE html>
-<html lang="uk">
-<head>
-  <meta charset="utf-8">
-  <title>Crypto Trader Dashboard</title>
+{% extends 'dashboard/base.html' %}
+{% load i18n %}
+{% block title %}{% trans 'Crypto Trader Dashboard' %}{% endblock %}
+{% block extra_head %}
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -150,40 +149,37 @@
       margin: 15px 0;
     }
   </style>
-</head>
-<body>
-  <div class="container">
+{% endblock %}
+{% block content %}
     <h1>
-      💹 Crypto Trader Dashboard
-      <span id="modeIndicator" class="mode-indicator mode-test">⚠️ ТЕСТОВИЙ РЕЖИМ</span>
+      💹 {% trans 'Crypto Trader Dashboard' %}
+      <span id="modeIndicator" class="mode-indicator mode-test">{% trans '⚠️ TEST MODE' %}</span>
     </h1>
 
     <!-- Блок вибору режиму -->
     <div class="block">
-      <h2 class="section-title">🎛️ Налаштування режиму</h2>
+      <h2 class="section-title">🎛️ {% trans 'Mode settings' %}</h2>
 
       <div id="testWarning" class="warning-box" style="display:block;">
-        <strong>⚠️ Увага:</strong> Зараз активний <strong>ТЕСТОВИЙ РЕЖИМ</strong>.
-        Всі операції симулюються, реальні трейди не виконуються.
+        <strong>⚠️ {% trans 'Warning' %}:</strong> {% trans 'Test mode is active. No real trades are executed.' %}
       </div>
 
       <div id="realWarning" class="danger-box" style="display:none;">
-        <strong>🔴 УВАГА!</strong> Зараз активний <strong>РЕЖИМ РЕАЛЬНИХ ОПЕРАЦІЙ</strong>.
-        Всі операції будуть виконуватись на реальному рахунку з реальними коштами!
+        <strong>🔴 {% trans 'ATTENTION!' %}</strong> {% trans 'Live trading mode is active. Operations will use real funds.' %}
       </div>
 
-      <button id="toggleModeBtn">🔄 Перемкнути режим</button>
+      <button id="toggleModeBtn">🔄 {% trans 'Toggle mode' %}</button>
       <p style="color:#666; font-size:14px; margin-top:10px;">
-        Поточний режим: <strong id="currentMode">ТЕСТОВИЙ</strong>
+        {% trans 'Current mode' %}: <strong id="currentMode">{% trans 'TEST' %}</strong>
       </p>
     </div>
 
     <!-- Блок налаштування таймерів -->
     <div class="block">
-      <h2 class="section-title">⏱️ Налаштування таймерів</h2>
+      <h2 class="section-title">⏱️ {% trans 'Timer settings' %}</h2>
 
       <div>
-        <h4>📅 Дефолтний інтервал ребалансування</h4>
+        <h4>📅 {% trans 'Default rebalance interval' %}</h4>
         <label>Дні: <input id="defDays" type="number" min="0" value="0"></label>
         <label>Години: <input id="defHours" type="number" min="0" value="1"></label>
         <label>Хвилини: <input id="defMinutes" type="number" min="0" value="0"></label>
@@ -192,7 +188,7 @@
       </div>
 
       <div style="margin-top:25px;">
-        <h4>🎯 Наступне ребалансування через</h4>
+        <h4>🎯 {% trans 'Next rebalance in' %}</h4>
         <label>Дні: <input id="nextDays" type="number" min="0" value="0"></label>
         <label>Години: <input id="nextHours" type="number" min="0" value="0"></label>
         <label>Хвилини: <input id="nextMinutes" type="number" min="0" value="10"></label>
@@ -200,32 +196,32 @@
         <button id="setNextRebalanceBtn">✅ Встановити час</button>
         <button id="stopBtn">⏹ Зупинити таймер</button>
 
-        <div class="timer-info" id="timer">⏳ До наступного ребалансування: ...</div>
+        <div class="timer-info" id="timer">⏳ {% trans 'Until next rebalance' %}: ...</div>
       </div>
     </div>
 
     <!-- Блок поточного портфеля -->
     <div class="block">
       <div class="portfolio-header">
-        <h2 class="section-title" style="margin:0; padding:0;">📊 Поточний портфель</h2>
+        <h2 class="section-title" style="margin:0; padding:0;">📊 {% trans 'Current portfolio' %}</h2>
         <div class="portfolio-toolbar">
-          <button id="rebalanceBtn">🔄 Ребалансувати зараз</button>
-          <button id="refreshBtn">🔃 Оновити портфель</button>
+          <button id="rebalanceBtn">🔄 {% trans 'Rebalance now' %}</button>
+          <button id="refreshBtn">🔃 {% trans 'Refresh portfolio' %}</button>
         </div>
       </div>
 
       <table id="portfolio">
-        <tr><th>Монета</th><th>Баланс</th><th>Вартість USDC</th></tr>
+        <tr><th>{% trans 'Asset' %}</th><th>{% trans 'Balance' %}</th><th>{% trans 'Value (USDC)' %}</th></tr>
       </table>
     </div>
 
     <!-- Блок останнього ребалансування -->
     <div class="block">
-      <h2 class="section-title">📘 Останнє ребалансування</h2>
-      <pre id="rebalanceLog">Очікування даних...</pre>
+      <h2 class="section-title">📘 {% trans 'Last rebalance' %}</h2>
+      <pre id="rebalanceLog">{% trans 'Waiting for data...' %}</pre>
     </div>
-  </div>
-
+{% endblock %}
+{% block extra_scripts %}
   <script>
 let remaining = 0;
 let defaultInterval = 3600;
@@ -241,15 +237,15 @@ function updateModeIndicator() {
   const realWarning = document.getElementById('realWarning');
 
   if (isDryRun) {
-    indicator.textContent = '⚠️ ТЕСТОВИЙ РЕЖИМ';
+    indicator.textContent = '{% trans "⚠️ TEST MODE" %}';
     indicator.className = 'mode-indicator mode-test';
-    currentMode.textContent = 'ТЕСТОВИЙ';
+    currentMode.textContent = '{% trans "TEST" %}';
     testWarning.style.display = 'block';
     realWarning.style.display = 'none';
   } else {
-    indicator.textContent = '🔴 РЕАЛЬНІ ОПЕРАЦІЇ';
+    indicator.textContent = '{% trans "🔴 LIVE MODE" %}';
     indicator.className = 'mode-indicator mode-real';
-    currentMode.textContent = 'РЕАЛЬНІ ОПЕРАЦІЇ';
+    currentMode.textContent = '{% trans "LIVE" %}';
     testWarning.style.display = 'none';
     realWarning.style.display = 'block';
   }
@@ -259,14 +255,14 @@ function updateModeIndicator() {
 document.getElementById('toggleModeBtn').onclick = async () => {
   const confirmed = confirm(
     isDryRun
-      ? '⚠️ УВАГА! Ви збираєтесь перемкнутись на РЕЖИМ РЕАЛЬНИХ ОПЕРАЦІЙ!\n\nВсі наступні операції будуть виконуватись з реальними коштами!\n\nПродовжити?'
-      : 'Перемкнутись на тестовий режим?'
+      ? '{% trans "⚠️ WARNING! You are switching to LIVE trading!\n\nSubsequent operations will use real funds.\n\nContinue?" %}'
+      : '{% trans "Switch to test mode?" %}'
   );
 
   if (!confirmed) return;
 
   try {
-    const res = await fetch(`/toggle_dry_run/?mode=${isDryRun ? 'real' : 'test'}`);
+    const res = await fetch(`{% url 'dashboard:toggle_dry_run' %}?mode=${isDryRun ? 'real' : 'test'}`);
     const data = await res.json();
 
     if (data.status === 'ok') {
@@ -275,15 +271,15 @@ document.getElementById('toggleModeBtn').onclick = async () => {
       alert(data.message);
     }
   } catch (err) {
-    console.error('Помилка перемикання режиму:', err);
-    alert('❌ Не вдалось перемкнути режим');
+    console.error('{% trans "Mode switch error:" %}', err);
+    alert('{% trans "❌ Failed to switch mode" %}');
   }
 };
 
 // 🪙 Оновлення портфеля
 async function fetchStatus(updatePortfolio = false) {
   try {
-    const res = await fetch('/status/');
+    const res = await fetch('{% url "dashboard:status" %}');
     const data = await res.json();
 
     if (!timerPaused && data.remaining !== null) {
@@ -305,7 +301,7 @@ async function fetchStatus(updatePortfolio = false) {
 
 function updatePortfolioTable(portfolio) {
   const table = document.getElementById('portfolio');
-  table.innerHTML = "<tr><th>Монета</th><th>Баланс</th><th>Вартість USDC</th></tr>";
+  table.innerHTML = `<tr><th>{% trans 'Asset' %}</th><th>{% trans 'Balance' %}</th><th>{% trans 'Value (USDC)' %}</th></tr>`;
 
   let totalValue = 0;
 
@@ -336,7 +332,7 @@ function updatePortfolioTable(portfolio) {
 
   table.insertAdjacentHTML('beforeend',
     `<tr style="background:#f3f4f6; font-weight:bold;">
-      <td>РАЗОМ</td>
+      <td>{% trans 'TOTAL' %}</td>
       <td>-</td>
       <td>$${totalValue.toFixed(2)}</td>
     </tr>`
@@ -346,13 +342,13 @@ function updatePortfolioTable(portfolio) {
 function updateTimerDisplay() {
   const el = document.getElementById('timer');
   if (remaining <= 0) {
-    el.textContent = "✅ Час ребалансування настав!";
+    el.textContent = '{% trans "✅ Rebalance time reached!" %}';
   } else {
     const d = Math.floor(remaining / 86400);
     const h = Math.floor((remaining % 86400) / 3600);
     const m = Math.floor((remaining % 3600) / 60);
     const s = remaining % 60;
-    el.textContent = `⏳ Залишилось: ${d}д ${h}г ${m}хв ${s}с`;
+    el.textContent = `⏳ {% trans 'Remaining' %}: ${d}d ${h}h ${m}m ${s}s`;
   }
 }
 
@@ -368,12 +364,12 @@ function startTimer() {
 }
 
 async function onTimerEnd() {
-  document.getElementById('timer').textContent = "🔄 Виконується ребалансування...";
+  document.getElementById('timer').textContent = '{% trans "🔄 Rebalancing in progress..." %}';
   try {
-    await fetch('/manual_rebalance/');
+    await fetch('{% url "dashboard:manual_rebalance" %}');
     await fetchStatus(true);
   } catch (e) {
-    console.error("Помилка ребалансування:", e);
+    console.error('{% trans "Rebalance error:" %}', e);
   }
   remaining = defaultInterval;
   updateTimerDisplay();
@@ -384,10 +380,10 @@ document.getElementById('stopBtn').onclick = () => {
   timerPaused = !timerPaused;
   const btn = document.getElementById('stopBtn');
   if (timerPaused) {
-    btn.textContent = "▶️ Запустити таймер";
+    btn.textContent = '{% trans "▶️ Start timer" %}';
     btn.style.background = "#22c55e";
   } else {
-    btn.textContent = "⏹ Зупинити таймер";
+    btn.textContent = '{% trans "⏹ Stop timer" %}';
     btn.style.background = "#ef4444";
   }
 };
@@ -398,7 +394,7 @@ document.getElementById('saveDefaultIntervalBtn').onclick = () => {
   const m = Number(document.getElementById('defMinutes').value) || 0;
   const s = Number(document.getElementById('defSeconds').value) || 0;
   defaultInterval = d * 86400 + h * 3600 + m * 60 + s;
-  alert(`✅ Новий дефолтний інтервал: ${defaultInterval} сек.`);
+  alert(`✅ {% trans 'New default interval' %}: ${defaultInterval} {% trans 'sec' %}.`);
 };
 
 document.getElementById('setNextRebalanceBtn').onclick = () => {
@@ -409,38 +405,38 @@ document.getElementById('setNextRebalanceBtn').onclick = () => {
   remaining = d * 86400 + h * 3600 + m * 60 + s;
   updateTimerDisplay();
   startTimer();
-  alert(`⏱️ Наступне ребалансування через ${remaining} сек.`);
+  alert(`⏱️ {% trans 'Next rebalance in' %} ${remaining} {% trans 'sec' %}.`);
 };
 
 document.getElementById('rebalanceBtn').onclick = async () => {
   const confirmed = confirm(
     isDryRun
-      ? 'Виконати тестове ребалансування?'
-      : '🔴 УВАГА! Виконати РЕАЛЬНЕ ребалансування з реальними коштами?'
+      ? '{% trans "Execute test rebalance?" %}'
+      : '{% trans "🔴 WARNING! Execute LIVE rebalance with real funds?" %}'
   );
 
   if (!confirmed) return;
 
   const btn = document.getElementById('rebalanceBtn');
   btn.disabled = true;
-  btn.textContent = "🔄 Ребалансування...";
+  btn.textContent = '{% trans "🔄 Rebalancing..." %}';
 
   try {
-    const res = await fetch('/manual_rebalance/');
+    const res = await fetch('{% url "dashboard:manual_rebalance" %}');
     const data = await res.json();
 
     if (data.status === "ok") {
-      alert("✅ Ребалансування виконано!");
+      alert('{% trans "✅ Rebalance completed!" %}');
       await fetchStatus(true);
     } else {
-      alert("❌ Помилка: " + (data.error || 'Unknown error'));
+      alert('{% trans "❌ Error:" %} ' + (data.error || 'Unknown error'));
     }
   } catch (err) {
     console.error(err);
-    alert("⚠️ Не вдалось виконати ребалансування.");
+    alert('{% trans "⚠️ Failed to perform rebalance." %}');
   } finally {
     btn.disabled = false;
-    btn.textContent = "🔄 Ребалансувати зараз";
+  btn.textContent = '{% trans "🔄 Rebalance now" %}';
   }
 };
 
@@ -458,5 +454,4 @@ window.onload = async () => {
   startTimer();
 };
   </script>
-</body>
-</html>
+{% endblock %}

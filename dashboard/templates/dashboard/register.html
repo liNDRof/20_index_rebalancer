@@ -1,34 +1,22 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Реєстрація користувача</title>
-  <meta charset="utf-8">
-</head>
-<body>
-  <h2>Створити нового користувача</h2>
-
-  {% if error %}
-  <p style="color: red;">{{ error }}</p>
-  {% endif %}
-
-  <form method="post">
-    {% csrf_token %}
-
-    <label>Ім'я користувача:</label><br>
-    <input type="text" name="username" required><br><br>
-
-    <label>Email:</label><br>
-    <input type="email" name="email" required><br><br>
-
-    <label>Пароль:</label><br>
-    <input type="password" name="password1" required><br><br>
-
-    <label>Підтвердження пароля:</label><br>
-    <input type="password" name="password2" required><br><br>
-
-    <button type="submit">Створити акаунт</button>
-  </form>
-
-  <p>Вже маєш акаунт? <a href="{% url 'dashboard:login' %}">Увійти</a></p>
-</body>
-</html>
+{% extends 'dashboard/base.html' %}
+{% load i18n %}
+{% block title %}{% trans 'Register' %}{% endblock %}
+{% block content %}
+  <div class="card" style="max-width:480px;">
+    <h2>{% trans 'Create a new user' %}</h2>
+    {% if error %}
+      <p style="color: red;">{{ error }}</p>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:grid; gap:8px;">
+        <label>{% trans "Username" %}:<br><input type="text" name="username" required></label>
+        <label>Email:<br><input type="email" name="email" required></label>
+        <label>{% trans "Password" %}:<br><input type="password" name="password1" required></label>
+        <label>{% trans "Confirm password" %}:<br><input type="password" name="password2" required></label>
+        <button type="submit">{% trans 'Create account' %}</button>
+      </div>
+    </form>
+    <p style="margin-top:8px;">{% trans 'Already have an account?' %} <a href="{% url 'dashboard:login' %}">{% trans 'Login' %}</a></p>
+  </div>
+{% endblock %}

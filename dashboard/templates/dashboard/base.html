@@ -1,0 +1,58 @@
+{% load i18n static %}
+<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{% trans 'Crypto Trader' %}{% endblock %}</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f9fafb; margin:0; color:#111827; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 16px; }
+    .navbar { background:#111827; color:#fff; }
+    .navbar .inner { display:flex; align-items:center; gap:12px; }
+    .navbar a { color:#e5e7eb; text-decoration:none; padding:10px 12px; border-radius:8px; }
+    .navbar a:hover, .navbar a.active { background:#1f2937; }
+    .navbar .spacer { flex:1; }
+    .avatar { background:#2563eb; color:#fff; border-radius:9999px; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center; font-weight:bold; }
+    .main { padding: 20px 0; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <nav class="navbar">
+    <div class="container inner">
+      <a href="{% url 'dashboard:index' %}" aria-label="Home">💹 {% trans 'Dashboard' %}</a>
+      <a href="{% url 'dashboard:status' %}" aria-label="Status">{% trans 'Status' %}</a>
+      <a href="{% url 'dashboard:manual_rebalance' %}" aria-label="Rebalance">{% trans 'Rebalance' %}</a>
+      <div class="spacer"></div>
+      {% if request.user.is_authenticated %}
+        <a href="{% url 'dashboard:profile' %}" aria-label="Profile">
+          <span class="avatar" aria-hidden="true">{{ request.user.username|first|upper }}</span>
+          <span style="margin-left:6px;">{{ request.user.username }}</span>
+        </a>
+        <a href="{% url 'dashboard:logout' %}" aria-label="Logout">{% trans 'Logout' %}</a>
+      {% else %}
+        <a href="{% url 'dashboard:login' %}" aria-label="Login">{% trans 'Login' %}</a>
+        <a href="{% url 'dashboard:register' %}" aria-label="Register">{% trans 'Register' %}</a>
+      {% endif %}
+
+      <form action="{% url 'set_language' %}" method="post" style="margin-left:12px;" id="lang-form">
+        {% csrf_token %}
+        <input name="next" type="hidden" value="{{ request.get_full_path }}">
+        <select name="language" aria-label="Language" id="lang-select">
+          <option value="uk" {% if LANGUAGE_CODE == 'uk' %}selected{% endif %}>Українська</option>
+          <option value="en" {% if LANGUAGE_CODE == 'en' %}selected{% endif %}>English</option>
+        </select>
+      </form>
+    </div>
+  </nav>
+  <main class="container main">
+    {% block content %}{% endblock %}
+  </main>
+  <script src="{% static 'dashboard/i18n-switch.js' %}"></script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>
+
+
