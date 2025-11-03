@@ -26,24 +26,7 @@
       margin-bottom: 25px;
     }
 
-    /* Режим роботи */
-    .mode-indicator {
-      display: inline-block;
-      padding: 8px 16px;
-      border-radius: 6px;
-      font-weight: bold;
-      margin-left: 15px;
-    }
-    .mode-test {
-      background: #fef3c7;
-      color: #92400e;
-      border: 2px solid #f59e0b;
-    }
-    .mode-real {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 2px solid #ef4444;
-    }
+
 
     table {
       width: 100%;
@@ -80,7 +63,6 @@
     #rebalanceBtn { background: #f59e0b; color: white; }
     #refreshBtn { background: #3b82f6; color: white; }
     #stopBtn { background: #ef4444; color: white; }
-    #toggleModeBtn { background: #8b5cf6; color: white; }
     #saveDefaultIntervalBtn, #setNextRebalanceBtn {
       background: #e5e7eb;
       border: 1px solid #d1d5db;
@@ -134,45 +116,11 @@
       margin: 0;
     }
 
-    .warning-box {
-      background: #fef3c7;
-      border: 2px solid #f59e0b;
-      border-radius: 8px;
-      padding: 15px;
-      margin: 15px 0;
-    }
-    .danger-box {
-      background: #fee2e2;
-      border: 2px solid #ef4444;
-      border-radius: 8px;
-      padding: 15px;
-      margin: 15px 0;
-    }
+
   </style>
 {% endblock %}
 {% block content %}
-    <h1>
-      💹 {% trans 'Crypto Trader Dashboard' %}
-      <span id="modeIndicator" class="mode-indicator mode-test">{% trans '⚠️ TEST MODE' %}</span>
-    </h1>
-
-    <!-- Блок вибору режиму -->
-    <div class="block">
-      <h2 class="section-title">🎛️ {% trans 'Mode settings' %}</h2>
-
-      <div id="testWarning" class="warning-box" style="display:block;">
-        <strong>⚠️ {% trans 'Warning' %}:</strong> {% trans 'Test mode is active. No real trades are executed.' %}
-      </div>
-
-      <div id="realWarning" class="danger-box" style="display:none;">
-        <strong>🔴 {% trans 'ATTENTION!' %}</strong> {% trans 'Live trading mode is active. Operations will use real funds.' %}
-      </div>
-
-      <button id="toggleModeBtn">🔄 {% trans 'Toggle mode' %}</button>
-      <p style="color:#666; font-size:14px; margin-top:10px;">
-        {% trans 'Current mode' %}: <strong id="currentMode">{% trans 'TEST' %}</strong>
-      </p>
-    </div>
+    <h1>💹 {% trans 'Crypto Trader Dashboard' %}</h1>
 
     <!-- Блок налаштування таймерів -->
     <div class="block">
@@ -227,54 +175,6 @@ let remaining = 0;
 let defaultInterval = 3600;
 let timerPaused = false;
 let timerInterval = null;
-let isDryRun = true;
-
-// 🔄 Оновлення індикатора режиму
-function updateModeIndicator() {
-  const indicator = document.getElementById('modeIndicator');
-  const currentMode = document.getElementById('currentMode');
-  const testWarning = document.getElementById('testWarning');
-  const realWarning = document.getElementById('realWarning');
-
-  if (isDryRun) {
-    indicator.textContent = '{% trans "⚠️ TEST MODE" %}';
-    indicator.className = 'mode-indicator mode-test';
-    currentMode.textContent = '{% trans "TEST" %}';
-    testWarning.style.display = 'block';
-    realWarning.style.display = 'none';
-  } else {
-    indicator.textContent = '{% trans "🔴 LIVE MODE" %}';
-    indicator.className = 'mode-indicator mode-real';
-    currentMode.textContent = '{% trans "LIVE" %}';
-    testWarning.style.display = 'none';
-    realWarning.style.display = 'block';
-  }
-}
-
-// 🎛️ Перемикання режиму
-document.getElementById('toggleModeBtn').onclick = async () => {
-  const confirmed = confirm(
-    isDryRun
-      ? '{% trans "⚠️ WARNING! You are switching to LIVE trading!\n\nSubsequent operations will use real funds.\n\nContinue?" %}'
-      : '{% trans "Switch to test mode?" %}'
-  );
-
-  if (!confirmed) return;
-
-  try {
-    const res = await fetch(`{% url 'dashboard:toggle_dry_run' %}?mode=${isDryRun ? 'real' : 'test'}`);
-    const data = await res.json();
-
-    if (data.status === 'ok') {
-      isDryRun = data.dry_run_mode;
-      updateModeIndicator();
-      alert(data.message);
-    }
-  } catch (err) {
-    console.error('{% trans "Mode switch error:" %}', err);
-    alert('{% trans "❌ Failed to switch mode" %}');
-  }
-};
 
 // 🪙 Оновлення портфеля
 async function fetchStatus(updatePortfolio = false) {
@@ -409,11 +309,7 @@ document.getElementById('setNextRebalanceBtn').onclick = () => {
 };
 
 document.getElementById('rebalanceBtn').onclick = async () => {
-  const confirmed = confirm(
-    isDryRun
-      ? '{% trans "Execute test rebalance?" %}'
-      : '{% trans "🔴 WARNING! Execute LIVE rebalance with real funds?" %}'
-  );
+  const confirmed = confirm('{% trans "Execute rebalance?" %}');
 
   if (!confirmed) return;
 
@@ -447,7 +343,6 @@ setInterval(() => fetchStatus(true), 10000);
 
 // Ініціалізація
 window.onload = async () => {
-  updateModeIndicator();
   await fetchStatus(true);
   remaining = defaultInterval;
   updateTimerDisplay();
