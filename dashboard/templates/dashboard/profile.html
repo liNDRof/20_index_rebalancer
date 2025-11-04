@@ -1,23 +1,241 @@
 {% extends 'dashboard/base.html' %}
 {% load i18n %}
 {% block title %}{% trans 'User Profile' %}{% endblock %}
+{% block extra_head %}
+<style>
+  .profile-container {
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 20px;
+  }
+  .profile-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    padding: 25px;
+    margin-bottom: 25px;
+  }
+  .profile-section h2 {
+    color: #2563eb;
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+  }
+  .profile-section h3 {
+    color: #374151;
+    margin-top: 20px;
+    margin-bottom: 15px;
+  }
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: #374151;
+  }
+  .form-group input, .form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  .form-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 8px;
+  }
+  .form-group small {
+    display: block;
+    color: #6b7280;
+    margin-top: 5px;
+    font-size: 12px;
+  }
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+    margin-right: 10px;
+  }
+  .btn-primary {
+    background: #2563eb;
+    color: white;
+  }
+  .btn-primary:hover {
+    background: #1d4ed8;
+  }
+  .btn-success {
+    background: #10b981;
+    color: white;
+  }
+  .alert {
+    padding: 15px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+  }
+  .alert-success {
+    background: #d1fae5;
+    border: 1px solid #10b981;
+    color: #065f46;
+  }
+  .alert-error {
+    background: #fee2e2;
+    border: 1px solid #ef4444;
+    color: #991b1b;
+  }
+  .alert-warning {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #92400e;
+  }
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+  }
+  .status-configured {
+    background: #d1fae5;
+    color: #065f46;
+  }
+  .status-not-configured {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+  .info-item {
+    margin-bottom: 15px;
+  }
+  .info-item strong {
+    display: inline-block;
+    min-width: 150px;
+    color: #374151;
+  }
+</style>
+{% endblock %}
 {% block content %}
-  <div class="card" style="max-width:700px;">
-    <h2>{% trans 'Profile' %}</h2>
-    <p><strong>{% trans 'Username' %}:</strong> {{ request.user.username }}</p>
-    <p><strong>Email:</strong> {{ request.user.email }}</p>
+<div class="profile-container">
+  <h1>👤 {% trans 'User Profile' %}</h1>
 
-    <hr style="margin:16px 0;">
-    <h3>{% trans 'Update email' %}</h3>
-    {% if message %}
-      <p style="color: green;">{{ message }}</p>
-    {% endif %}
+  {% if message %}
+    <div class="alert alert-success">✅ {{ message }}</div>
+  {% endif %}
+
+  {% if error %}
+    <div class="alert alert-error">❌ {{ error }}</div>
+  {% endif %}
+
+  {% if not has_credentials %}
+    <div class="alert alert-warning">
+      ⚠️ {% trans 'Please configure your Binance API credentials to start trading' %}
+    </div>
+  {% endif %}
+
+  <!-- Account Information -->
+  <div class="profile-section">
+    <h2>📋 {% trans 'Account Information' %}</h2>
+    <div class="info-item">
+      <strong>{% trans 'Username' %}:</strong> {{ request.user.username }}
+    </div>
+    <div class="info-item">
+      <strong>{% trans 'Email' %}:</strong> {{ request.user.email }}
+    </div>
+    <div class="info-item">
+      <strong>{% trans 'Member since' %}:</strong> {{ request.user.date_joined|date:"Y-m-d H:i" }}
+    </div>
+    <div class="info-item">
+      <strong>{% trans 'API Status' %}:</strong>
+      {% if has_credentials %}
+        <span class="status-badge status-configured">✅ {% trans 'Configured' %}</span>
+      {% else %}
+        <span class="status-badge status-not-configured">❌ {% trans 'Not configured' %}</span>
+      {% endif %}
+    </div>
+
+    <h3>{% trans 'Update Email' %}</h3>
     <form method="post">
       {% csrf_token %}
-      <input type="email" name="email" placeholder="{% trans 'New email' %}" value="{{ request.user.email }}" required>
-      <button type="submit">{% trans 'Save' %}</button>
+      <input type="hidden" name="action" value="update_email">
+      <div class="form-group">
+        <label>{% trans 'Email Address' %}:</label>
+        <input type="email" name="email" value="{{ request.user.email }}" required>
+      </div>
+      <button type="submit" class="btn btn-primary">💾 {% trans 'Save Email' %}</button>
     </form>
   </div>
+
+  <!-- API Credentials -->
+  <div class="profile-section">
+    <h2>🔑 {% trans 'Binance API Credentials' %}</h2>
+    <p>{% trans 'Your API credentials are encrypted and stored securely in the database.' %}</p>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_credentials">
+
+      <div class="form-group">
+        <label>{% trans 'Binance API Key' %}:</label>
+        <input type="text" name="binance_api_key" placeholder="{% trans 'Enter your Binance API Key' %}" {% if has_credentials %}value="••••••••••••••••"{% endif %}>
+        <small>{% trans 'Your Binance API key for trading' %}</small>
+      </div>
+
+      <div class="form-group">
+        <label>{% trans 'Binance API Secret' %}:</label>
+        <input type="password" name="binance_api_secret" placeholder="{% trans 'Enter your Binance API Secret' %}" {% if has_credentials %}value="••••••••••••••••"{% endif %}>
+        <small>{% trans 'Your Binance API secret (stored encrypted)' %}</small>
+      </div>
+
+      <div class="form-group">
+        <label>{% trans 'CoinMarketCap API Key' %} ({% trans 'Optional' %}):</label>
+        <input type="text" name="cmc_api_key" placeholder="{% trans 'Enter your CMC API Key or leave empty for default' %}" value="{{ profile.cmc_api_key|default:'' }}">
+        <small>{% trans 'Optional: Use your own CMC API key, or leave empty to use the default' %}</small>
+      </div>
+
+      <button type="submit" class="btn btn-primary">🔐 {% trans 'Save API Credentials' %}</button>
+    </form>
+  </div>
+
+  <!-- Trader Settings -->
+  <div class="profile-section">
+    <h2>⚙️ {% trans 'Trader Settings' %}</h2>
+
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="update_settings">
+
+      <div class="form-group">
+        <label>{% trans 'Default Rebalance Interval' %} ({% trans 'seconds' %}):</label>
+        <input type="number" name="default_interval" value="{{ profile.default_interval }}" min="60" step="1">
+        <small>{% trans 'Time between automatic rebalances' %} ({% trans 'minimum 60 seconds' %}). {% trans 'Default: 3600 (1 hour)' %}</small>
+      </div>
+
+      <div class="form-group">
+        <label>
+          <input type="checkbox" name="auto_rebalance" {% if profile.auto_rebalance %}checked{% endif %}>
+          {% trans 'Enable automatic rebalancing' %}
+        </label>
+        <small>{% trans 'When enabled, the system will automatically rebalance your portfolio at the specified interval' %}</small>
+      </div>
+
+      <button type="submit" class="btn btn-success">💾 {% trans 'Save Settings' %}</button>
+    </form>
+  </div>
+
+  <!-- Security Notice -->
+  <div class="profile-section">
+    <h2>🔒 {% trans 'Security Notice' %}</h2>
+    <p>{% trans 'Your API credentials are encrypted using industry-standard encryption (Fernet) before being stored in the database.' %}</p>
+    <p>{% trans 'Each user has unique encryption keys derived from the Django secret key and your user ID.' %}</p>
+    <p><strong>{% trans 'Important' %}:</strong> {% trans 'Make sure your Binance API key has only the necessary permissions (Spot Trading, Read Account Information). Never enable withdrawal permissions!' %}</p>
+  </div>
+
+  <div style="margin-top: 30px;">
+    <a href="{% url 'dashboard:index' %}" class="btn btn-primary">← {% trans 'Back to Dashboard' %}</a>
+  </div>
+</div>
 {% endblock %}
 
 

@@ -12,16 +12,29 @@ load_dotenv()
 class BTCETH_CMC20_Trader:
     """Автоматизований трейдер з розподілом портфеля між BTC та ETH на основі CMC20 Index"""
 
-    def __init__(self):
-        # Binance API
-        self.binance_api_key = os.getenv("BINANCE_API_KEY")
-        self.binance_api_secret = os.getenv("BINANCE_API_SECRET")
+    def __init__(self, binance_api_key=None, binance_api_secret=None, cmc_api_key=None, update_interval=None):
+        """
+        Initialize trader with user-specific or default credentials
+
+        Args:
+            binance_api_key: User's Binance API key (if None, uses .env)
+            binance_api_secret: User's Binance API secret (if None, uses .env)
+            cmc_api_key: User's CoinMarketCap API key (if None, uses .env)
+            update_interval: Custom update interval in seconds (if None, uses .env)
+        """
+        # Binance API - use provided credentials or fall back to .env
+        self.binance_api_key = binance_api_key or os.getenv("BINANCE_API_KEY")
+        self.binance_api_secret = binance_api_secret or os.getenv("BINANCE_API_SECRET")
+
+        if not self.binance_api_key or not self.binance_api_secret:
+            raise ValueError("Binance API credentials are required. Please configure them in your profile.")
+
         self.client = Client(self.binance_api_key, self.binance_api_secret)
 
-        # CoinMarketCap API
-        self.cmc_api_key = os.getenv("COINMARKETCAP_API_KEY")
+        # CoinMarketCap API - use provided or fall back to .env
+        self.cmc_api_key = cmc_api_key or os.getenv("COINMARKETCAP_API_KEY")
         self.cmc_api_url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
-        self.update_interval = int(os.getenv("CMC_INDEX_UPDATE_INTERVAL", 3600))
+        self.update_interval = update_interval or int(os.getenv("CMC_INDEX_UPDATE_INTERVAL", 3600))
 
         # Список стейблкоїнів для виключення
         self.stablecoins = ['USDT', 'USDC', 'BUSD', 'FDUSD', 'USDe', 'DAI', 'TUSD', 'USDP', 'USDD', 'GUSD', 'PYUSD']

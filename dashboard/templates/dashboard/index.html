@@ -122,6 +122,25 @@
 {% block content %}
     <h1>💹 {% trans 'Crypto Trader Dashboard' %}</h1>
 
+    {% if needs_setup %}
+    <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 30px;">
+      <h2 style="color: #92400e; margin-top: 0;">⚠️ {% trans 'Setup Required' %}</h2>
+      <p style="font-size: 16px; color: #92400e; margin-bottom: 20px;">
+        {% trans 'Please configure your Binance API credentials to start trading.' %}
+      </p>
+      <a href="{% url 'dashboard:profile' %}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+        🔑 {% trans 'Go to Profile Settings' %}
+      </a>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div style="background: #fee2e2; border: 2px solid #ef4444; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+      <p style="color: #991b1b; margin: 0;">❌ {{ error }}</p>
+    </div>
+    {% endif %}
+
+    {% if not needs_setup %}
     <!-- Блок налаштування таймерів -->
     <div class="block">
       <h2 class="section-title">⏱️ {% trans 'Timer settings' %}</h2>
@@ -168,6 +187,7 @@
       <h2 class="section-title">📘 {% trans 'Last rebalance' %}</h2>
       <pre id="rebalanceLog">{% trans 'Waiting for data...' %}</pre>
     </div>
+    {% endif %}
 {% endblock %}
 {% block extra_scripts %}
   <script>

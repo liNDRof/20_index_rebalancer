@@ -1,25 +1,62 @@
-# зверху файлу додай
 import traceback
+import threading
+import time
+from datetime import datetime, timedelta
 from django.shortcuts import render, redirect
 from django.utils.translation import gettext as _
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from trader.btceth_trader import BTCETH_CMC20_Trader
+from django.contrib.auth.models import User
 from django.http import JsonResponse
-import threading
-import time
-from dashboard.models import TraderSettings
+from django.db import transaction
+from django.core.exceptions import ValidationError
+
+from trader.btceth_trader import BTCETH_CMC20_Trader
+from .models import UserProfile, TraderSession, TradeHistory
 
 
+# Thread management for each user
+user_trader_threads = {}  # {user_id: thread}
+user_trader_locks = {}    # {user_id: lock}
 
-trader_thread = None
-trader_running = False
-next_run_time = None
-last_portfolio = {}
-last_rebalance_info = {}
 
+def get_or_create_profile(user):
+    """Get or create user profile"""
+    profile, created = UserProfile.objects.get_or_create(user=user)
+    return profile
+
+
+def get_or_create_session(user):
+    """Get or create trader session for user"""
+    session, created = TraderSession.objects.get_or_create(user=user)
+    return session
+
+
+def create_user_trader(user):
+    """Create trader instance with user's credentials"""
+    profile = get_or_create_profile(user)
+
+    if not profile.has_binance_credentials():
+        raise ValueError("Please configure your Binance API credentials in your profile first.")
+
+    api_key, api_secret = profile.get_binance_credentials()
+
+    trader = BTCETH_CMC20_Trader(
+        binance_api_key=api_key,
+        binance_api_secret=api_secret,
+        cmc_api_key=profile.cmc_api_key,
+        update_interval=profile.default_interval
+    )
+
+    return trader
+
+
+# ============================================
+# Authentication Views
+# ============================================
 
 def login_view(request):
+    """User login"""
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -28,475 +65,429 @@ def login_view(request):
         if user:
             login(request, user)
             response = redirect('dashboard:index')
-            response.set_cookie('is_logged_in', 'true', max_age=3600*24*7)  # cookie на 7 днів
+            response.set_cookie('is_logged_in', 'true', max_age=3600*24*7)
             return response
         else:
-            return render(request, 'dashboard/login.html', {'error': _('Invalid username or password')})
+            return render(request, 'dashboard/login.html', {
+                'error': _('Invalid username or password')
+            })
 
     return render(request, 'dashboard/login.html')
 
-@login_required
-def index(request):
-    """Головна сторінка керування трейдером"""
-    global trader_running, trader_thread
-
-    # 🚀 Автоматичний запуск трейдера при вході
-    if not trader_running:
-        trader_running = True
-        trader_thread = threading.Thread(target=trader_loop, daemon=True)
-        trader_thread.start()
-
-    return render(request, 'dashboard/index.html', {
-        'is_running': trader_running,
-        'next_run_time': next_run_time,
-        'portfolio': last_portfolio,
-        'rebalance': last_rebalance_info,
-    })
-
-
-def logout_view(request):
-    logout(request)
-    response = redirect('login')
-    response.delete_cookie('is_logged_in')
-    return response
-
-
-@login_required
-def profile_view(request):
-    message = None
-    if request.method == 'POST':
-        new_email = request.POST.get('email')
-        if new_email:
-            request.user.email = new_email
-            request.user.save()
-            message = _('Email updated')
-    return render(request, 'dashboard/profile.html', {'message': message})
-
-
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login, logout
-from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
 
 def register_view(request):
+    """User registration"""
     if request.method == 'POST':
         username = request.POST.get('username')
         email = request.POST.get('email')
         password1 = request.POST.get('password1')
         password2 = request.POST.get('password2')
 
-        # Перевірка заповненості полів
+        # Validation
         if not username or not email or not password1 or not password2:
-            return render(request, 'dashboard/register.html', {'error': _('Please fill in all fields')})
+            return render(request, 'dashboard/register.html', {
+                'error': _('Please fill in all fields')
+            })
 
-        # Перевірка співпадіння паролів
         if password1 != password2:
-            return render(request, 'dashboard/register.html', {'error': _('Passwords do not match')})
+            return render(request, 'dashboard/register.html', {
+                'error': _('Passwords do not match')
+            })
 
-        # Перевірка унікальності
         if User.objects.filter(username=username).exists():
-            return render(request, 'dashboard/register.html', {'error': _('This username already exists')})
+            return render(request, 'dashboard/register.html', {
+                'error': _('This username already exists')
+            })
+
         if User.objects.filter(email=email).exists():
-            return render(request, 'dashboard/register.html', {'error': _('This email is already registered')})
+            return render(request, 'dashboard/register.html', {
+                'error': _('This email is already registered')
+            })
 
-        # Створення користувача
-        user = User.objects.create_user(username=username, email=email, password=password1)
-        user.save()
+        # Create user and profile
+        with transaction.atomic():
+            user = User.objects.create_user(username=username, email=email, password=password1)
+            UserProfile.objects.create(user=user)
+            TraderSession.objects.create(user=user)
 
-        # Автоматичний логін
+        # Auto login
         login(request, user)
-        response = redirect('dashboard:index')
+        response = redirect('dashboard:profile')  # Redirect to profile to set API keys
         response.set_cookie('is_logged_in', 'true', max_age=3600 * 24 * 7)
         return response
 
     return render(request, 'dashboard/register.html')
 
 
+def logout_view(request):
+    """User logout"""
+    # Stop trader if running
+    if request.user.is_authenticated:
+        stop_user_trader(request.user)
 
-def trader_loop():
-    global trader_running, next_run_time, last_portfolio, last_rebalance_info
+    logout(request)
+    response = redirect('dashboard:login')
+    response.delete_cookie('is_logged_in')
+    return response
 
+
+# ============================================
+# Profile Management
+# ============================================
+
+@login_required
+def profile_view(request):
+    """User profile management"""
+    profile = get_or_create_profile(request.user)
+    message = None
+    error = None
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+
+        if action == 'update_credentials':
+            binance_api_key = request.POST.get('binance_api_key', '').strip()
+            binance_api_secret = request.POST.get('binance_api_secret', '').strip()
+            cmc_api_key = request.POST.get('cmc_api_key', '').strip()
+
+            try:
+                if binance_api_key and binance_api_secret:
+                    profile.set_binance_credentials(binance_api_key, binance_api_secret)
+
+                if cmc_api_key:
+                    profile.cmc_api_key = cmc_api_key
+
+                profile.save()
+                message = _('API credentials updated successfully')
+            except ValidationError as e:
+                error = str(e)
+            except Exception as e:
+                error = f"Error: {str(e)}"
+
+        elif action == 'update_settings':
+            try:
+                default_interval = int(request.POST.get('default_interval', 3600))
+                auto_rebalance = request.POST.get('auto_rebalance') == 'on'
+
+                profile.default_interval = max(60, default_interval)  # Minimum 60 seconds
+                profile.auto_rebalance = auto_rebalance
+                profile.save()
+
+                message = _('Settings updated successfully')
+            except Exception as e:
+                error = f"Error: {str(e)}"
+
+        elif action == 'update_email':
+            new_email = request.POST.get('email', '').strip()
+            if new_email:
+                request.user.email = new_email
+                request.user.save()
+                message = _('Email updated')
+
+    return render(request, 'dashboard/profile.html', {
+        'profile': profile,
+        'has_credentials': profile.has_binance_credentials(),
+        'message': message,
+        'error': error
+    })
+
+
+# ============================================
+# Dashboard View
+# ============================================
+
+@login_required
+def index(request):
+    """Main dashboard"""
+    profile = get_or_create_profile(request.user)
+    session = get_or_create_session(request.user)
+
+    # Check if user has configured API credentials
+    if not profile.has_binance_credentials():
+        return render(request, 'dashboard/index.html', {
+            'error': _('Please configure your Binance API credentials in your profile first.'),
+            'needs_setup': True,
+            'session': session,
+        })
+
+    return render(request, 'dashboard/index.html', {
+        'session': session,
+        'needs_setup': False,
+    })
+
+
+# ============================================
+# Trader Control
+# ============================================
+
+def stop_user_trader(user):
+    """Stop trader for specific user"""
+    user_id = user.id
+    if user_id in user_trader_threads:
+        # Signal thread to stop
+        session = get_or_create_session(user)
+        session.is_running = False
+        session.save()
+
+        # Wait a bit for thread to finish
+        thread = user_trader_threads.get(user_id)
+        if thread and thread.is_alive():
+            thread.join(timeout=2)
+
+        # Clean up
+        user_trader_threads.pop(user_id, None)
+        user_trader_locks.pop(user_id, None)
+
+
+def user_trader_loop(user_id):
+    """Background trader loop for specific user"""
     try:
-        trader = BTCETH_CMC20_Trader()
-        print("DEBUG: trader_loop created trader, interval:", trader.update_interval)
-    except Exception:
-        print("ERROR: cannot create trader in trader_loop")
+        user = User.objects.get(id=user_id)
+        profile = get_or_create_profile(user)
+        session = get_or_create_session(user)
+
+        # Create trader with user credentials
+        trader = create_user_trader(user)
+        interval = profile.default_interval
+
+        while session.is_running:
+            # Refresh session from DB
+            session.refresh_from_db()
+
+            if not session.is_running:
+                break
+
+            try:
+                print(f"🔁 [{user.username}] Starting rebalance...")
+
+                # Get portfolio
+                balances, total = trader.get_all_binance_balances()
+                session.last_portfolio = balances
+                session.save()
+
+                # Execute rebalance
+                rebalance_result = trader.execute_portfolio_rebalance(dry_run=session.dry_run_mode)
+
+                # Save result
+                session.last_rebalance_result = rebalance_result if rebalance_result else {"note": "no result"}
+                session.last_run_time = datetime.now()
+                session.next_run_time = datetime.now() + timedelta(seconds=interval)
+                session.save()
+
+                # Save to trade history
+                TradeHistory.objects.create(
+                    user=user,
+                    trade_type='rebalance',
+                    dry_run=session.dry_run_mode,
+                    trade_data=rebalance_result if rebalance_result else {},
+                    success=True
+                )
+
+                print(f"✅ [{user.username}] Rebalance completed")
+
+            except Exception as e:
+                print(f"❌ [{user.username}] Error: {e}")
+                traceback.print_exc()
+
+                error_data = {"error": str(e), "trace": traceback.format_exc()}
+                session.last_rebalance_result = error_data
+                session.save()
+
+                TradeHistory.objects.create(
+                    user=user,
+                    trade_type='rebalance',
+                    dry_run=session.dry_run_mode,
+                    trade_data=error_data,
+                    success=False,
+                    error_message=str(e)
+                )
+
+            # Wait for next cycle
+            print(f"😴 [{user.username}] Waiting {interval} seconds...")
+            time.sleep(interval)
+
+        print(f"⛔ [{user.username}] Trader loop stopped")
+
+    except Exception as e:
+        print(f"❌ [{user.username}] Fatal error in trader loop: {e}")
         traceback.print_exc()
-        trader_running = False
-        return
-
-    interval = trader.update_interval
-
-    while trader_running:
-        try:
-            print("🔁 Запуск ребалансування (background)...")
-            balances, total = trader.get_all_binance_balances()
-            print("DEBUG: background balances total:", total)
-            last_portfolio = balances
-
-            rebalance_result = trader.execute_portfolio_rebalance(dry_run=True)
-            print("DEBUG: background rebalance_result:", repr(rebalance_result))
-            last_rebalance_info = rebalance_result if rebalance_result is not None else {"note": "no result (None)"}
-
-            print("✅ Ребалансування завершено (background).")
-        except Exception as e:
-            print("❌ Помилка у трейдері (background):", e)
-            traceback.print_exc()
-            last_rebalance_info = {"error": str(e), "trace": traceback.format_exc()}
-        # ... (залиш остальну частину)
 
 
 @login_required
 def start_trader(request):
-    global trader_thread, trader_running
-    if not trader_running:
-        trader_running = True
-        trader_thread = threading.Thread(target=trader_loop, daemon=True)
-        trader_thread.start()
+    """Start trader for current user"""
+    user = request.user
+    session = get_or_create_session(user)
+
+    try:
+        # Verify credentials
+        create_user_trader(user)  # This will raise error if no credentials
+
+        if session.is_running:
+            return JsonResponse({'status': 'already_running'})
+
+        # Start trader thread
+        session.is_running = True
+        session.save()
+
+        thread = threading.Thread(target=user_trader_loop, args=(user.id,), daemon=True)
+        thread.start()
+
+        user_trader_threads[user.id] = thread
+
         return JsonResponse({'status': 'started'})
-    else:
-        return JsonResponse({'status': 'already_running'})
+
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'error': str(e)})
+
 
 @login_required
 def stop_trader(request):
-    global trader_running
-    trader_running = False
+    """Stop trader for current user"""
+    stop_user_trader(request.user)
     return JsonResponse({'status': 'stopped'})
+
+
+# ============================================
+# Status & Data
+# ============================================
 
 @login_required
 def get_status(request):
-    """Повертає статус, портфель і останнє ребалансування"""
-    if next_run_time:
-        remaining = max(0, int(next_run_time - time.time()))
-    else:
-        remaining = None
+    """Get current status for user"""
+    session = get_or_create_session(request.user)
+
+    remaining = None
+    if session.next_run_time:
+        remaining = max(0, int((session.next_run_time - datetime.now()).total_seconds()))
 
     return JsonResponse({
-        'is_running': trader_running,
+        'is_running': session.is_running,
         'remaining': remaining,
-        'portfolio': last_portfolio,
-        'rebalance': last_rebalance_info,
-        'dry_run_mode': DRY_RUN_MODE
+        'portfolio': session.last_portfolio,
+        'rebalance': session.last_rebalance_result,
+        'dry_run_mode': session.dry_run_mode
     })
 
 
 @login_required
+def manual_rebalance(request):
+    """Manual rebalance for current user"""
+    user = request.user
+    session = get_or_create_session(user)
+
+    try:
+        # Create trader with user credentials
+        trader = create_user_trader(user)
+
+        # Get portfolio
+        balances, total = trader.get_all_binance_balances()
+        session.last_portfolio = balances
+        session.save()
+
+        # Execute rebalance
+        rebalance_result = trader.execute_portfolio_rebalance(dry_run=session.dry_run_mode)
+
+        # Save result
+        session.last_rebalance_result = rebalance_result if rebalance_result else {"note": "no result"}
+        session.last_run_time = datetime.now()
+        session.save()
+
+        # Save to history
+        TradeHistory.objects.create(
+            user=user,
+            trade_type='manual',
+            dry_run=session.dry_run_mode,
+            trade_data=rebalance_result if rebalance_result else {},
+            success=True
+        )
+
+        return JsonResponse({
+            "status": "ok",
+            "rebalance": rebalance_result if rebalance_result else {"note": "no result"},
+            "dry_run": session.dry_run_mode
+        })
+
+    except Exception as e:
+        traceback.print_exc()
+        error_data = {"error": str(e), "trace": traceback.format_exc()}
+
+        session.last_rebalance_result = error_data
+        session.save()
+
+        TradeHistory.objects.create(
+            user=user,
+            trade_type='manual',
+            dry_run=session.dry_run_mode,
+            trade_data=error_data,
+            success=False,
+            error_message=str(e)
+        )
+
+        return JsonResponse({"status": "error", "error": str(e)})
+
+
+# ============================================
+# Settings
+# ============================================
+
+@login_required
 def update_default_interval(request):
-    """Оновлення дефолтного інтервалу ребалансування"""
-    global default_interval
+    """Update default rebalance interval"""
+    profile = get_or_create_profile(request.user)
+
     try:
         days = int(request.GET.get("days", 0))
         hours = int(request.GET.get("hours", 0))
         minutes = int(request.GET.get("minutes", 0))
         seconds = int(request.GET.get("seconds", 0))
+
         total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
-        default_interval = max(60, total_seconds)  # мінімум 60 с
-        return JsonResponse({"status": "ok", "default_interval": default_interval})
+        profile.default_interval = max(60, total_seconds)  # Minimum 60 seconds
+        profile.save()
+
+        return JsonResponse({"status": "ok", "default_interval": profile.default_interval})
     except Exception as e:
         return JsonResponse({"status": "error", "error": str(e)})
 
+
 @login_required
 def set_next_rebalance_time(request):
-    """Встановити час до наступного ребалансування"""
-    global next_run_time
+    """Set next rebalance time"""
+    session = get_or_create_session(request.user)
+
     try:
         days = int(request.GET.get("days", 0))
         hours = int(request.GET.get("hours", 0))
         minutes = int(request.GET.get("minutes", 0))
         seconds = int(request.GET.get("seconds", 0))
+
         total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
-        next_run_time = time.time() + total_seconds
+        session.next_run_time = datetime.now() + timedelta(seconds=total_seconds)
+        session.save()
+
         return JsonResponse({"status": "ok", "next_in": total_seconds})
     except Exception as e:
         return JsonResponse({"status": "error", "error": str(e)})
 
 
-
-def calculate_rebalancing_orders(self, current_balances: dict, target_allocation: dict,
-                                 total_portfolio_value: float) -> dict:
-    """Розширена логіка: обираємо market або convert з урахуванням LOT_SIZE та MIN_NOTIONAL."""
-    operations = {
-        'sell_orders': {},
-        'sell_convert': {},
-        'buy_orders': {},
-        'buy_convert': {}
-    }
-
-    THRESHOLD = 5.0  # базовий поріг (запас)
-    print(f"\n💵 Розрахунок операцій для ребалансування (threshold ${THRESHOLD})")
-    print("-" * 80)
-
-    # вибираємо quote currency
-    quote_currency = None
-    quote_balance = 0
-    for stable in ['USDC', 'USDT', 'BUSD', 'FDUSD']:
-        if current_balances.get(stable, {}).get('total', 0) > 0.1:
-            quote_currency = stable
-            quote_balance = current_balances.get(stable, {}).get('total', 0)
-            break
-    if not quote_currency:
-        quote_currency = 'USDC'
-        quote_balance = 0
-        print(f"⚠️ Немає стейблкоїнів, використовую {quote_currency}")
-
-    def can_place_market(pair: str, quantity: float, value_usdc: float) -> (bool, str):
-        """
-        Перевіряє, чи можна ставити market order:
-        - існує пара
-        - quantity >= LOT_SIZE.stepSize
-        - value_usdc >= MIN_NOTIONAL (якщо є)
-        Повертає (True/False, reason)
-        """
-        try:
-            info = self.client.get_symbol_info(pair)
-            if not info:
-                return False, "no_symbol_info"
-
-            # знайдемо LOT_SIZE і MIN_NOTIONAL
-            step_size = None
-            min_notional = None
-            for f in info.get('filters', []):
-                if f.get('filterType') == 'LOT_SIZE':
-                    step_size = float(f.get('stepSize', '0'))
-                elif f.get('filterType') == 'MIN_NOTIONAL':
-                    # поле може бути 'minNotional' або 'minNotional' як str
-                    min_notional = float(f.get('minNotional', f.get('minNotional', 0) or 0))
-
-            # якщо step_size відомий — перевіряємо квант
-            if step_size and quantity < step_size:
-                return False, f"below_lot_size({quantity:.8f}<{step_size})"
-
-            # якщо min_notional заданий — перевіряємо value
-            if min_notional and value_usdc < min_notional:
-                return False, f"below_min_notional(${value_usdc:.2f}<{min_notional})"
-
-            return True, "ok"
-        except Exception as e:
-            # якщо не можемо отримати info — краще використати convert
-            return False, f"symbol_info_error:{e}"
-
-    total_sell_value = 0
-    total_buy_value = 0
-
-    for symbol, target_data in target_allocation.items():
-        current_value = current_balances.get(symbol, {}).get('usdc_value', 0)
-        current_quantity = current_balances.get(symbol, {}).get('total', 0)
-        target_value = target_data['target_value']
-        difference_value = target_value - current_value
-
-        if abs(difference_value) < 1:
-            continue
-
-        price = self.get_binance_price(symbol)
-        if price == 0:
-            print(f"⚠️ Не вдалося отримати ціну для {symbol}, пропускаємо")
-            continue
-
-        if difference_value > 0:
-            # КУПІВЛЯ
-            quantity = difference_value / price
-            total_buy_value += difference_value
-
-            pair = f"{symbol}{quote_currency}"
-            can_market, reason = can_place_market(pair, quantity, difference_value)
-            if difference_value > THRESHOLD and can_market:
-                operations['buy_orders'][symbol] = {
-                    'quantity': quantity,
-                    'value_usdc': difference_value,
-                    'price': price,
-                    'quote_currency': quote_currency,
-                    'reason': reason
-                }
-                print(f"🟢 MARKET BUY {symbol}: {quantity:,.8f} токенів на ${difference_value:,.2f} (reason: {reason})")
-            else:
-                operations['buy_convert'][symbol] = {
-                    'from_asset': quote_currency,
-                    'to_asset': symbol,
-                    'amount': difference_value,
-                    'type': 'convert',
-                    'reason': reason
-                }
-                print(f"🔵 CONVERT {quote_currency}→{symbol}: ${difference_value:,.2f} (reason: {reason})")
-        else:
-            # ПРОДАЖ
-            sell_value = abs(difference_value)
-            quantity = sell_value / price
-            total_sell_value += sell_value
-
-            pair = f"{symbol}{quote_currency}"
-            can_market, reason = can_place_market(pair, quantity, sell_value)
-            if sell_value > THRESHOLD and can_market:
-                operations['sell_orders'][symbol] = {
-                    'quantity': quantity,
-                    'value_usdc': sell_value,
-                    'price': price,
-                    'quote_currency': quote_currency,
-                    'reason': reason
-                }
-                print(f"🔴 MARKET SELL {symbol}: {quantity:,.8f} токенів на ${sell_value:,.2f} (reason: {reason})")
-            else:
-                operations['sell_convert'][symbol] = {
-                    'from_asset': symbol,
-                    'to_asset': quote_currency,
-                    'amount': sell_value,
-                    'current_quantity': current_quantity,
-                    'type': 'convert',
-                    'reason': reason
-                }
-                print(f"🟠 CONVERT {symbol}→{quote_currency}: ${sell_value:,.2f} (reason: {reason})")
-
-    # Перевірка коштів
-    if any(operations.values()):
-        available_after_sell = quote_balance + total_sell_value
-        print(f"\n💰 Баланс після продажу: ${available_after_sell:.2f}")
-        print(f"📊 Потрібно для купівлі: ${total_buy_value:.2f}")
-        if available_after_sell >= total_buy_value:
-            print("✅ Достатньо коштів")
-        else:
-            print(f"⚠️ Недостатньо коштів: бракує ${total_buy_value - available_after_sell:.2f}")
-
-    print("-" * 80)
-    return operations
-
-
-# ============================================
-# ВИПРАВЛЕННЯ 1: manual_rebalance (рядок ~288)
-# ============================================
-@login_required
-def manual_rebalance(request):
-    global last_portfolio, last_rebalance_info, next_run_time, DRY_RUN_MODE
-
-    try:
-        print("DEBUG: manual_rebalance called by", request.user)
-        trader = BTCETH_CMC20_Trader()
-        print("DEBUG: trader instance created")
-
-        # Отримуємо поточні баланси
-        balances, total = trader.get_all_binance_balances()
-        print("DEBUG: balances fetched, total =", total)
-        last_portfolio = balances
-
-        # ✅ Використовуємо глобальний режим
-        print(f"DEBUG: Executing rebalance with dry_run={DRY_RUN_MODE}")
-        rebalance_result = trader.execute_portfolio_rebalance(dry_run=DRY_RUN_MODE)
-        print("DEBUG: execute_portfolio_rebalance returned:", repr(rebalance_result))
-
-        last_rebalance_info = rebalance_result if rebalance_result is not None else {"note": "no result (None)"}
-        next_run_time = time.time() + trader.update_interval
-
-        return JsonResponse({
-            "status": "ok",
-            "rebalance": last_rebalance_info,
-            "dry_run": DRY_RUN_MODE
-        })
-
-    except Exception as e:
-        traceback.print_exc()
-        last_rebalance_info = {"error": str(e), "trace": traceback.format_exc()}
-        return JsonResponse({"status": "error", "error": str(e), "trace": traceback.format_exc()})
-
-
-# ============================================
-# ВИПРАВЛЕННЯ 2: trader_loop (рядок ~105)
-# ============================================
-def trader_loop():
-    global trader_running, next_run_time, last_portfolio, last_rebalance_info, DRY_RUN_MODE
-
-    try:
-        trader = BTCETH_CMC20_Trader()
-        print("DEBUG: trader_loop created trader, interval:", trader.update_interval)
-    except Exception:
-        print("ERROR: cannot create trader in trader_loop")
-        traceback.print_exc()
-        trader_running = False
-        return
-
-    interval = trader.update_interval
-
-    while trader_running:
-        try:
-            print("🔍 Запуск ребалансування (background)...")
-            balances, total = trader.get_all_binance_balances()
-            print("DEBUG: background balances total:", total)
-            last_portfolio = balances
-
-            # ✅ Використовуємо глобальний режим
-            print(f"DEBUG: Background rebalance with dry_run={DRY_RUN_MODE}")
-            rebalance_result = trader.execute_portfolio_rebalance(dry_run=DRY_RUN_MODE)
-            print("DEBUG: background rebalance_result:", repr(rebalance_result))
-            last_rebalance_info = rebalance_result if rebalance_result is not None else {"note": "no result (None)"}
-
-            print("✅ Ребалансування завершено (background).")
-
-            # Встановлюємо час наступного запуску
-            next_run_time = time.time() + interval
-
-        except Exception as e:
-            print("❌ Помилка у трейдері (background):", e)
-            traceback.print_exc()
-            last_rebalance_info = {"error": str(e), "trace": traceback.format_exc()}
-
-        # ✅ Додано sleep для очікування між циклами
-        print(f"😴 Очікування {interval} секунд до наступного ребалансування...")
-        time.sleep(interval)
-
-    print("⛔ trader_loop завершено")
-
-
-# ============================================
-# ВИПРАВЛЕННЯ 3: Додати можливість вибору режиму
-# ============================================
-# Додайте глобальну змінну для контролю режиму:
-DRY_RUN_MODE = False  # False = реальні операції, True = тестовий режим
-
-
-# Оновіть manual_rebalance:
-@login_required
-def manual_rebalance(request):
-    global last_portfolio, last_rebalance_info, next_run_time, DRY_RUN_MODE
-
-    try:
-        trader = BTCETH_CMC20_Trader()
-        balances, total = trader.get_all_binance_balances()
-        last_portfolio = balances
-
-        # Використовуємо глобальний режим
-        rebalance_result = trader.execute_portfolio_rebalance(dry_run=DRY_RUN_MODE)
-
-        last_rebalance_info = rebalance_result if rebalance_result is not None else {"note": "no result (None)"}
-        next_run_time = time.time() + trader.update_interval
-
-        return JsonResponse({
-            "status": "ok",
-            "rebalance": last_rebalance_info,
-            "dry_run": DRY_RUN_MODE  # Показуємо режим
-        })
-
-    except Exception as e:
-        traceback.print_exc()
-        return JsonResponse({"status": "error", "error": str(e)})
-
-
-# ============================================
-# ВИПРАВЛЕННЯ 4: Додати endpoint для зміни режиму
-# ============================================
 @login_required
 def toggle_dry_run(request):
-    """Перемикає між тестовим та реальним режимом"""
-    global DRY_RUN_MODE
+    """Toggle dry run mode"""
+    session = get_or_create_session(request.user)
 
     mode = request.GET.get('mode', None)
     if mode == 'real':
-        DRY_RUN_MODE = False
+        session.dry_run_mode = False
     elif mode == 'test':
-        DRY_RUN_MODE = True
+        session.dry_run_mode = True
     else:
-        DRY_RUN_MODE = not DRY_RUN_MODE
+        session.dry_run_mode = not session.dry_run_mode
+
+    session.save()
 
     return JsonResponse({
         'status': 'ok',
-        'dry_run_mode': DRY_RUN_MODE,
-        'message': f"Режим: {'ТЕСТОВИЙ' if DRY_RUN_MODE else 'РЕАЛЬНІ ОПЕРАЦІЇ'}"
+        'dry_run_mode': session.dry_run_mode,
+        'message': _('Test mode') if session.dry_run_mode else _('Real trading mode')
     })
-
-
