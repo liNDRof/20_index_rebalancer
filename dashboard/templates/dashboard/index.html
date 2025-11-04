@@ -3,163 +3,449 @@
 {% block title %}{% trans 'Crypto Trader Dashboard' %}{% endblock %}
 {% block extra_head %}
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f9fafb;
-      margin: 0;
-      padding: 0;
-      color: #111827;
+    /* Dashboard Modern Design */
+    .dashboard-title {
+      background: white;
+      border-radius: 16px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      text-align: center;
     }
-    h1, h2, h3, h4 { margin: 10px 0; }
 
-    .container {
-      max-width: 1000px;
-      margin: 40px auto;
-      padding: 20px;
+    .dashboard-title h1 {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin: 0;
     }
 
     .block {
       background: white;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 30px;
+      margin-bottom: 30px;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .block:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid transparent;
+      border-image: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+      border-image-slice: 1;
+      color: #1f2937;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Alert Boxes */
+    .alert-box {
       border-radius: 12px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      padding: 20px;
-      margin-bottom: 25px;
+      padding: 24px;
+      margin-bottom: 30px;
+      animation: slideIn 0.5s ease;
     }
 
-
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
+    .alert-warning {
+      background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+      border: 2px solid #f59e0b;
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
     }
 
-    th {
-      background: #2563eb;
+    .alert-error {
+      background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+      border: 2px solid #ef4444;
+      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
+    }
+
+    .alert-box h2 {
+      color: #92400e;
+      margin: 0 0 12px 0;
+      font-size: 24px;
+    }
+
+    .alert-box p {
+      color: #92400e;
+      margin: 0 0 20px 0;
+      font-size: 16px;
+    }
+
+    .btn-setup {
+      display: inline-block;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      padding: 14px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
     }
 
+    .btn-setup:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+    }
+
+    /* Timer Controls */
+    .timer-controls {
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .timer-controls h4 {
+      color: #374151;
+      margin: 0 0 15px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .input-group label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #6b7280;
+    }
+
+    input[type=number] {
+      width: 80px;
+      padding: 10px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      background: white;
+    }
+
+    input[type=number]:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    /* Buttons */
     button {
-      padding: 8px 16px;
+      padding: 12px 24px;
       margin: 5px;
-      font-size: 15px;
+      font-size: 14px;
+      font-weight: 600;
       border: none;
-      border-radius: 6px;
+      border-radius: 10px;
       cursor: pointer;
-      transition: 0.2s;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
     }
 
     button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      transform: none !important;
     }
 
-    #rebalanceBtn { background: #f59e0b; color: white; }
-    #refreshBtn { background: #3b82f6; color: white; }
-    #stopBtn { background: #ef4444; color: white; }
+    #rebalanceBtn {
+      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+      color: white;
+    }
+
+    #refreshBtn {
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+    }
+
+    #stopBtn {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+    }
+
     #saveDefaultIntervalBtn, #setNextRebalanceBtn {
-      background: #e5e7eb;
-      border: 1px solid #d1d5db;
-    }
-
-    input[type=number] {
-      width: 80px;
-      padding: 6px;
-      margin: 3px;
-    }
-
-    .section-title {
-      font-size: 18px;
-      font-weight: bold;
-      margin-bottom: 10px;
-      border-bottom: 2px solid #2563eb;
-      padding-bottom: 5px;
-      color: #2563eb;
-    }
-
-    pre {
-      background: #f3f4f6;
-      padding: 10px;
-      border-radius: 8px;
-      text-align: left;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-height: 400px;
-      overflow-y: auto;
-    }
-
-    .timer-info {
-      margin-top: 10px;
-      font-weight: bold;
+      background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
       color: #374151;
     }
 
+    .timer-info {
+      margin-top: 20px;
+      padding: 16px;
+      background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+      border-radius: 10px;
+      font-weight: 600;
+      color: #1e40af;
+      text-align: center;
+      font-size: 16px;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+    }
+
+    /* Portfolio Section */
     .portfolio-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
     }
     .portfolio-toolbar {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       align-items: center;
     }
     .portfolio-toolbar button {
-      padding: 6px 12px;
+      padding: 10px 20px;
       font-size: 14px;
       margin: 0;
     }
 
+    /* Table Styling */
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-top: 15px;
+      overflow: hidden;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
 
+    th {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f3f4f6;
+      color: #374151;
+      font-size: 14px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:hover td {
+      background: #f9fafb;
+    }
+
+    tr:nth-child(even) td {
+      background: #fafafa;
+    }
+
+    tr:nth-child(even):hover td {
+      background: #f3f4f6;
+    }
+
+    tbody tr {
+      transition: all 0.2s ease;
+    }
+
+    td strong {
+      color: #1f2937;
+      font-weight: 700;
+    }
+
+    /* Total Row */
+    table tr:last-child {
+      background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+      font-weight: 700;
+    }
+
+    table tr:last-child td {
+      color: #1f2937;
+      font-size: 15px;
+      padding: 16px;
+    }
+
+    /* Rebalance Log */
+    pre {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 500px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    pre::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    pre::-webkit-scrollbar-track {
+      background: #374151;
+      border-radius: 4px;
+    }
+
+    pre::-webkit-scrollbar-thumb {
+      background: #667eea;
+      border-radius: 4px;
+    }
+
+    pre::-webkit-scrollbar-thumb:hover {
+      background: #764ba2;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .dashboard-title h1 {
+        font-size: 24px;
+      }
+
+      .block {
+        padding: 20px;
+      }
+
+      .portfolio-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .portfolio-toolbar {
+        width: 100%;
+        flex-direction: column;
+      }
+
+      .portfolio-toolbar button {
+        width: 100%;
+      }
+
+      .input-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .input-group label {
+        width: 100%;
+      }
+
+      input[type=number] {
+        width: 100%;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
   </style>
 {% endblock %}
 {% block content %}
-    <h1>💹 {% trans 'Crypto Trader Dashboard' %}</h1>
+    <div class="dashboard-title">
+      <h1>💹 {% trans 'Crypto Trader Dashboard' %}</h1>
+    </div>
 
     {% if needs_setup %}
-    <div style="background: #fef3c7; border: 2px solid #f59e0b; border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 30px;">
-      <h2 style="color: #92400e; margin-top: 0;">⚠️ {% trans 'Setup Required' %}</h2>
-      <p style="font-size: 16px; color: #92400e; margin-bottom: 20px;">
-        {% trans 'Please configure your Binance API credentials to start trading.' %}
-      </p>
-      <a href="{% url 'dashboard:profile' %}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+    <div class="alert-box alert-warning">
+      <h2>⚠️ {% trans 'Setup Required' %}</h2>
+      <p>{% trans 'Please configure your Binance API credentials to start trading.' %}</p>
+      <a href="{% url 'dashboard:profile' %}" class="btn-setup">
         🔑 {% trans 'Go to Profile Settings' %}
       </a>
     </div>
     {% endif %}
 
     {% if error %}
-    <div style="background: #fee2e2; border: 2px solid #ef4444; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
-      <p style="color: #991b1b; margin: 0;">❌ {{ error }}</p>
+    <div class="alert-box alert-error">
+      <p style="margin: 0;">❌ {{ error }}</p>
     </div>
     {% endif %}
 
     {% if not needs_setup %}
-    <!-- Блок налаштування таймерів -->
+    <!-- Timer Settings Block -->
     <div class="block">
       <h2 class="section-title">⏱️ {% trans 'Timer settings' %}</h2>
 
-      <div>
+      <div class="timer-controls">
         <h4>📅 {% trans 'Default rebalance interval' %}</h4>
-        <label>{% trans 'Days' %}: <input id="defDays" type="number" min="0" value="0"></label>
-        <label>{% trans 'Hours' %}: <input id="defHours" type="number" min="0" value="1"></label>
-        <label>{% trans 'Minutes' %}: <input id="defMinutes" type="number" min="0" value="0"></label>
-        <label>{% trans 'Seconds' %}: <input id="defSeconds" type="number" min="0" value="0"></label>
+        <div class="input-group">
+          <label>
+            {% trans 'Days' %}
+            <input id="defDays" type="number" min="0" value="0">
+          </label>
+          <label>
+            {% trans 'Hours' %}
+            <input id="defHours" type="number" min="0" value="1">
+          </label>
+          <label>
+            {% trans 'Minutes' %}
+            <input id="defMinutes" type="number" min="0" value="0">
+          </label>
+          <label>
+            {% trans 'Seconds' %}
+            <input id="defSeconds" type="number" min="0" value="0">
+          </label>
+        </div>
         <button id="saveDefaultIntervalBtn">💾 {% trans 'Save default interval' %}</button>
       </div>
 
-      <div style="margin-top:25px;">
+      <div class="timer-controls">
         <h4>🎯 {% trans 'Next rebalance in' %}</h4>
-        <label>{% trans 'Days' %}: <input id="nextDays" type="number" min="0" value="0"></label>
-        <label>{% trans 'Hours' %}: <input id="nextHours" type="number" min="0" value="0"></label>
-        <label>{% trans 'Minutes' %}: <input id="nextMinutes" type="number" min="0" value="10"></label>
-        <label>{% trans 'Seconds' %}: <input id="nextSeconds" type="number" min="0" value="0"></label>
+        <div class="input-group">
+          <label>
+            {% trans 'Days' %}
+            <input id="nextDays" type="number" min="0" value="0">
+          </label>
+          <label>
+            {% trans 'Hours' %}
+            <input id="nextHours" type="number" min="0" value="0">
+          </label>
+          <label>
+            {% trans 'Minutes' %}
+            <input id="nextMinutes" type="number" min="0" value="10">
+          </label>
+          <label>
+            {% trans 'Seconds' %}
+            <input id="nextSeconds" type="number" min="0" value="0">
+          </label>
+        </div>
         <button id="setNextRebalanceBtn">✅ {% trans 'Set time' %}</button>
         <button id="stopBtn">⏹ {% trans 'Stop timer' %}</button>
 
@@ -167,10 +453,10 @@
       </div>
     </div>
 
-    <!-- Блок поточного портфеля -->
+    <!-- Portfolio Block -->
     <div class="block">
       <div class="portfolio-header">
-        <h2 class="section-title" style="margin:0; padding:0;">📊 {% trans 'Current portfolio' %}</h2>
+        <h2 class="section-title" style="margin:0; border:0;">📊 {% trans 'Current portfolio' %}</h2>
         <div class="portfolio-toolbar">
           <button id="rebalanceBtn">🔄 {% trans 'Rebalance now' %}</button>
           <button id="refreshBtn">🔃 {% trans 'Refresh portfolio' %}</button>
@@ -178,11 +464,19 @@
       </div>
 
       <table id="portfolio">
-        <tr><th>{% trans 'Asset' %}</th><th>{% trans 'Balance' %}</th><th>{% trans 'Value (USDC)' %}</th></tr>
+        <thead>
+          <tr>
+            <th>{% trans 'Asset' %}</th>
+            <th>{% trans 'Balance' %}</th>
+            <th>{% trans 'Value (USDC)' %}</th>
+          </tr>
+        </thead>
+        <tbody>
+        </tbody>
       </table>
     </div>
 
-    <!-- Блок останнього ребалансування -->
+    <!-- Last Rebalance Block -->
     <div class="block">
       <h2 class="section-title">📘 {% trans 'Last rebalance' %}</h2>
       <pre id="rebalanceLog">{% trans 'Waiting for data...' %}</pre>
@@ -234,8 +528,8 @@ function updatePortfolioTable(portfolio) {
   console.log("[updatePortfolioTable] Is array:", Array.isArray(portfolio));
   console.log("[updatePortfolioTable] Keys:", Object.keys(portfolio || {}));
 
-  const table = document.getElementById('portfolio');
-  table.innerHTML = `<tr><th>{% trans 'Asset' %}</th><th>{% trans 'Balance' %}</th><th>{% trans 'Value (USDC)' %}</th></tr>`;
+  const tbody = document.querySelector('#portfolio tbody');
+  tbody.innerHTML = '';
 
   let totalValue = 0;
   let itemCount = 0;
@@ -258,7 +552,7 @@ function updatePortfolioTable(portfolio) {
       balanceText = info;
     }
 
-    table.insertAdjacentHTML('beforeend',
+    tbody.insertAdjacentHTML('beforeend',
       `<tr>
         <td><strong>${symbol}</strong></td>
         <td>${balanceText}</td>
@@ -269,11 +563,11 @@ function updatePortfolioTable(portfolio) {
 
   console.log(`[updatePortfolioTable] Added ${itemCount} items, total value: $${totalValue.toFixed(2)}`);
 
-  table.insertAdjacentHTML('beforeend',
-    `<tr style="background:#f3f4f6; font-weight:bold;">
-      <td>{% trans 'TOTAL' %}</td>
+  tbody.insertAdjacentHTML('beforeend',
+    `<tr>
+      <td><strong>{% trans 'TOTAL' %}</strong></td>
       <td>-</td>
-      <td>$${totalValue.toFixed(2)}</td>
+      <td><strong>$${totalValue.toFixed(2)}</strong></td>
     </tr>`
   );
   console.log("[updatePortfolioTable] END");
