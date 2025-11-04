@@ -428,6 +428,25 @@ window.onload = async () => {
     await fetchStatus(true);
   }
 
+  // Always fetch status to load last rebalance results
+  console.log("[window.onload] Fetching status to load last rebalance results...");
+  try {
+    const statusRes = await fetch('{% url "dashboard:status" %}');
+    const statusData = await statusRes.json();
+    console.log("[window.onload] Status data:", statusData);
+
+    // Update rebalance log if available
+    if (statusData.rebalance && Object.keys(statusData.rebalance).length > 0) {
+      console.log("[window.onload] Loading last rebalance results");
+      document.getElementById('rebalanceLog').textContent =
+        JSON.stringify(statusData.rebalance, null, 2);
+    } else {
+      console.log("[window.onload] No rebalance results available");
+    }
+  } catch (err) {
+    console.error("[window.onload] Error fetching status:", err);
+  }
+
   remaining = defaultInterval;
   updateTimerDisplay();
   startTimer();
