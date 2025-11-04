@@ -51,21 +51,12 @@ def setup_logging():
     general_handler.setFormatter(detailed_formatter)
     general_logger.addHandler(general_handler)
 
-    # Also log to console with UTF-8 encoding to handle Unicode characters
+    # Also log to console
+    # NOTE: We don't wrap sys.stdout/stderr as it interferes with Django's StatReloader
+    # Instead, we rely on the formatter to handle encoding properly
     import sys
-    import io
 
-    # Create UTF-8 encoded stream wrapper for Windows compatibility
-    try:
-        if sys.platform == 'win32':
-            # On Windows, wrap stdout with UTF-8 encoding
-            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
-        console_handler = logging.StreamHandler(sys.stdout)
-    except Exception as e:
-        # If wrapping fails, use default stream with error replacement
-        console_handler = logging.StreamHandler()
-
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(detailed_formatter)
     general_logger.addHandler(console_handler)
 
