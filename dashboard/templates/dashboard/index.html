@@ -128,21 +128,21 @@
 
       <div>
         <h4>📅 {% trans 'Default rebalance interval' %}</h4>
-        <label>Дні: <input id="defDays" type="number" min="0" value="0"></label>
-        <label>Години: <input id="defHours" type="number" min="0" value="1"></label>
-        <label>Хвилини: <input id="defMinutes" type="number" min="0" value="0"></label>
-        <label>Секунди: <input id="defSeconds" type="number" min="0" value="0"></label>
-        <button id="saveDefaultIntervalBtn">💾 Зберегти дефолтний інтервал</button>
+        <label>{% trans 'Days' %}: <input id="defDays" type="number" min="0" value="0"></label>
+        <label>{% trans 'Hours' %}: <input id="defHours" type="number" min="0" value="1"></label>
+        <label>{% trans 'Minutes' %}: <input id="defMinutes" type="number" min="0" value="0"></label>
+        <label>{% trans 'Seconds' %}: <input id="defSeconds" type="number" min="0" value="0"></label>
+        <button id="saveDefaultIntervalBtn">💾 {% trans 'Save default interval' %}</button>
       </div>
 
       <div style="margin-top:25px;">
         <h4>🎯 {% trans 'Next rebalance in' %}</h4>
-        <label>Дні: <input id="nextDays" type="number" min="0" value="0"></label>
-        <label>Години: <input id="nextHours" type="number" min="0" value="0"></label>
-        <label>Хвилини: <input id="nextMinutes" type="number" min="0" value="10"></label>
-        <label>Секунди: <input id="nextSeconds" type="number" min="0" value="0"></label>
-        <button id="setNextRebalanceBtn">✅ Встановити час</button>
-        <button id="stopBtn">⏹ Зупинити таймер</button>
+        <label>{% trans 'Days' %}: <input id="nextDays" type="number" min="0" value="0"></label>
+        <label>{% trans 'Hours' %}: <input id="nextHours" type="number" min="0" value="0"></label>
+        <label>{% trans 'Minutes' %}: <input id="nextMinutes" type="number" min="0" value="10"></label>
+        <label>{% trans 'Seconds' %}: <input id="nextSeconds" type="number" min="0" value="0"></label>
+        <button id="setNextRebalanceBtn">✅ {% trans 'Set time' %}</button>
+        <button id="stopBtn">⏹ {% trans 'Stop timer' %}</button>
 
         <div class="timer-info" id="timer">⏳ {% trans 'Until next rebalance' %}: ...</div>
       </div>
