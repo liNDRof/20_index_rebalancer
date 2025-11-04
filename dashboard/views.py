@@ -1,6 +1,7 @@
 import traceback
 import threading
 import time
+import logging
 from datetime import datetime, timedelta
 from django.shortcuts import render, redirect
 from django.utils.translation import gettext as _
@@ -13,6 +14,11 @@ from django.core.exceptions import ValidationError
 
 from trader.btceth_trader import BTCETH_CMC20_Trader
 from .models import UserProfile, TraderSession, TradeHistory
+
+# Configure logging - use specialized loggers
+logger = logging.getLogger('general')
+api_logger = logging.getLogger('api')
+trade_logger = logging.getLogger('trades')
 
 
 # Thread management for each user
@@ -355,43 +361,151 @@ def stop_trader(request):
 @login_required
 def get_status(request):
     """Get current status for user"""
+    logger.info(f"[{request.user.username}] ========== get_status called ==========")
     session = get_or_create_session(request.user)
 
     remaining = None
     if session.next_run_time:
         remaining = max(0, int((session.next_run_time - datetime.now()).total_seconds()))
+        logger.info(f"[{request.user.username}] Next run time: {session.next_run_time}, remaining: {remaining}s")
 
-    return JsonResponse({
+    logger.info(f"[{request.user.username}] Session data:")
+    logger.info(f"  - is_running: {session.is_running}")
+    logger.info(f"  - dry_run_mode: {session.dry_run_mode}")
+    logger.info(f"  - last_portfolio type: {type(session.last_portfolio)}")
+    logger.info(f"  - last_portfolio: {session.last_portfolio}")
+    logger.info(f"  - portfolio_items: {len(session.last_portfolio) if session.last_portfolio else 0}")
+    logger.info(f"  - last_rebalance_result: {session.last_rebalance_result}")
+    logger.info(f"  - rebalance_data items: {len(session.last_rebalance_result) if session.last_rebalance_result else 0}")
+
+    response_data = {
         'is_running': session.is_running,
         'remaining': remaining,
         'portfolio': session.last_portfolio,
         'rebalance': session.last_rebalance_result,
         'dry_run_mode': session.dry_run_mode
-    })
+    }
+
+    logger.info(f"[{request.user.username}] Returning response: {response_data}")
+    logger.info(f"[{request.user.username}] ========== get_status END ==========")
+
+    return JsonResponse(response_data)
+
+
+@login_required
+def refresh_portfolio(request):
+    """Fetch fresh portfolio data from Binance"""
+    logger.info(f"[{request.user.username}] ========== refresh_portfolio called ==========")
+    user = request.user
+    session = get_or_create_session(user)
+    profile = get_or_create_profile(user)
+
+    logger.info(f"[{request.user.username}] User profile:")
+    logger.info(f"  - has_binance_credentials: {profile.has_binance_credentials()}")
+    logger.info(f"  - cmc_api_key: {'set' if profile.cmc_api_key else 'not set'}")
+    logger.info(f"  - default_interval: {profile.default_interval}")
+
+    try:
+        # Create trader with user credentials
+        logger.info(f"[{request.user.username}] Creating trader instance...")
+        trader = create_user_trader(user)
+        logger.info(f"[{request.user.username}] Trader instance created successfully")
+
+        # Fetch portfolio from Binance
+        logger.info(f"[{request.user.username}] Calling trader.get_all_binance_balances()...")
+        balances, total = trader.get_all_binance_balances()
+
+        logger.info(f"[{request.user.username}] Portfolio fetched successfully:")
+        logger.info(f"  - Number of assets: {len(balances)}")
+        logger.info(f"  - Total value: ${total}")
+        logger.info(f"  - Balances data: {balances}")
+
+        # Save to session
+        logger.info(f"[{request.user.username}] Saving portfolio to session...")
+        session.last_portfolio = balances
+        session.save()
+        logger.info(f"[{request.user.username}] Portfolio saved to session")
+
+        response_data = {
+            "status": "ok",
+            "portfolio": balances,
+            "total_value": total
+        }
+        logger.info(f"[{request.user.username}] Returning response: {response_data}")
+        logger.info(f"[{request.user.username}] ========== refresh_portfolio END (SUCCESS) ==========")
+
+        return JsonResponse(response_data)
+
+    except ValueError as e:
+        # Missing credentials
+        logger.error(f"[{request.user.username}] ========== CREDENTIALS ERROR ==========")
+        logger.error(f"[{request.user.username}] Missing credentials: {e}")
+        logger.error(f"[{request.user.username}] ========== refresh_portfolio END (ERROR) ==========")
+        return JsonResponse({
+            "status": "error",
+            "error": str(e),
+            "error_type": "credentials"
+        }, status=400)
+
+    except Exception as e:
+        logger.error(f"[{request.user.username}] ========== API ERROR ==========")
+        logger.error(f"[{request.user.username}] Error fetching portfolio: {e}")
+        logger.error(f"[{request.user.username}] Exception type: {type(e).__name__}")
+        logger.error(f"[{request.user.username}] Traceback:")
+        logger.error(traceback.format_exc())
+        logger.error(f"[{request.user.username}] ========== refresh_portfolio END (ERROR) ==========")
+        return JsonResponse({
+            "status": "error",
+            "error": str(e),
+            "error_type": "api_error"
+        }, status=500)
 
 
 @login_required
 def manual_rebalance(request):
     """Manual rebalance for current user"""
+    trade_logger.info(f"{'='*80}")
+    trade_logger.info(f"[{request.user.username}] MANUAL REBALANCE STARTED")
+    trade_logger.info(f"{'='*80}")
+
     user = request.user
     session = get_or_create_session(user)
 
     try:
         # Create trader with user credentials
+        trade_logger.info(f"[{request.user.username}] Step 1: Creating trader instance...")
         trader = create_user_trader(user)
+        trade_logger.info(f"[{request.user.username}] ✓ Trader instance created")
 
         # Get portfolio
+        trade_logger.info(f"[{request.user.username}] Step 2: Fetching portfolio from Binance...")
         balances, total = trader.get_all_binance_balances()
         session.last_portfolio = balances
         session.save()
+        trade_logger.info(f"[{request.user.username}] ✓ Portfolio fetched:")
+        trade_logger.info(f"[{request.user.username}]   - Assets: {len(balances)}")
+        trade_logger.info(f"[{request.user.username}]   - Total value: ${total:.2f}")
+        for symbol, info in balances.items():
+            if isinstance(info, dict):
+                trade_logger.info(f"[{request.user.username}]   - {symbol}: {info.get('free', 0)} (${info.get('usdc_value', 0):.2f})")
 
         # Execute rebalance
-        rebalance_result = trader.execute_portfolio_rebalance(dry_run=session.dry_run_mode)
+        is_dry_run = session.dry_run_mode
+        trade_logger.info(f"[{request.user.username}] Step 3: Executing rebalance...")
+        trade_logger.info(f"[{request.user.username}]   - Mode: {'DRY RUN (TEST)' if is_dry_run else 'LIVE TRADING'}")
+
+        rebalance_result = trader.execute_portfolio_rebalance(dry_run=is_dry_run)
 
         # Save result
         session.last_rebalance_result = rebalance_result if rebalance_result else {"note": "no result"}
         session.last_run_time = datetime.now()
         session.save()
+
+        trade_logger.info(f"[{request.user.username}] ✓ Rebalance completed successfully")
+        trade_logger.info(f"[{request.user.username}] Result summary:")
+        if isinstance(rebalance_result, dict):
+            for key, value in rebalance_result.items():
+                trade_logger.info(f"[{request.user.username}]   - {key}: {value}")
 
         # Save to history
         TradeHistory.objects.create(
@@ -402,6 +516,10 @@ def manual_rebalance(request):
             success=True
         )
 
+        trade_logger.info(f"{'='*80}")
+        trade_logger.info(f"[{request.user.username}] MANUAL REBALANCE COMPLETED - SUCCESS")
+        trade_logger.info(f"{'='*80}")
+
         return JsonResponse({
             "status": "ok",
             "rebalance": rebalance_result if rebalance_result else {"note": "no result"},
@@ -409,7 +527,9 @@ def manual_rebalance(request):
         })
 
     except Exception as e:
-        traceback.print_exc()
+        logger.error(f"[{request.user.username}] Error during manual rebalance: {e}")
+        logger.error(traceback.format_exc())
+
         error_data = {"error": str(e), "trace": traceback.format_exc()}
 
         session.last_rebalance_result = error_data

@@ -1,0 +1,2 @@
+# This directory stores all log files
+# Files in this directory are automatically rotated when they reach size limits

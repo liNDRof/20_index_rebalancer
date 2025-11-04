@@ -1,12 +1,20 @@
 import os
 import time
 import requests
+import logging
+import traceback
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
 
 load_dotenv()
+
+# Get specialized loggers
+api_logger = logging.getLogger('api')
+trade_logger = logging.getLogger('trades')
+error_logger = logging.getLogger('errors')
+debug_logger = logging.getLogger('debug')
 
 
 class BTCETH_CMC20_Trader:
@@ -22,14 +30,19 @@ class BTCETH_CMC20_Trader:
             cmc_api_key: User's CoinMarketCap API key (if None, uses .env)
             update_interval: Custom update interval in seconds (if None, uses .env)
         """
+        debug_logger.info("Initializing BTCETH_CMC20_Trader...")
+
         # Binance API - use provided credentials or fall back to .env
         self.binance_api_key = binance_api_key or os.getenv("BINANCE_API_KEY")
         self.binance_api_secret = binance_api_secret or os.getenv("BINANCE_API_SECRET")
 
         if not self.binance_api_key or not self.binance_api_secret:
+            error_logger.error("Binance API credentials missing")
             raise ValueError("Binance API credentials are required. Please configure them in your profile.")
 
+        debug_logger.info("Creating Binance client...")
         self.client = Client(self.binance_api_key, self.binance_api_secret)
+        debug_logger.info("Binance client created successfully")
 
         # CoinMarketCap API - use provided or fall back to .env
         self.cmc_api_key = cmc_api_key or os.getenv("COINMARKETCAP_API_KEY")
@@ -38,6 +51,8 @@ class BTCETH_CMC20_Trader:
 
         # Список стейблкоїнів для виключення
         self.stablecoins = ['USDT', 'USDC', 'BUSD', 'FDUSD', 'USDe', 'DAI', 'TUSD', 'USDP', 'USDD', 'GUSD', 'PYUSD']
+
+        debug_logger.info(f"Trader initialized with update_interval={self.update_interval}s, stablecoins={len(self.stablecoins)}")
 
     def get_binance_balance(self, asset="USDC") -> float:
         """Отримує доступний баланс на Binance"""
@@ -52,6 +67,7 @@ class BTCETH_CMC20_Trader:
 
     def get_all_binance_balances(self) -> dict:
         """Отримує всі баланси на Binance з вартістю в USDC"""
+        api_logger.info("Fetching all Binance balances...")
         try:
             account = self.client.get_account()
             balances = {}
@@ -107,14 +123,19 @@ class BTCETH_CMC20_Trader:
             print(f"{'РАЗОМ':6s} | {'':12s}   {'':12s}   {'':15s}   ≈ ${total_portfolio_usdc:10,.2f} USDC")
             print("-" * 90)
 
+            api_logger.info(f"Successfully fetched balances: {len(balances)} assets, total=${total_portfolio_usdc:.2f}")
+            debug_logger.debug(f"Balance details: {balances}")
             return balances, total_portfolio_usdc
 
         except BinanceAPIException as e:
+            error_logger.error(f"Binance API error fetching balances: {e}")
+            error_logger.error(traceback.format_exc())
             print(f"❌ Помилка отримання балансів: {e}")
             return {}, 0.0
 
     def get_btc_eth_allocation_from_cmc20(self) -> dict:
         """Отримує топ-20 токенів, бере ваги BTC та ETH + перерозподіл решти 18 ПРОПОРЦІЙНО"""
+        api_logger.info("Fetching CMC Top 20 allocation data...")
         try:
             headers = {
                 'X-CMC_PRO_API_KEY': self.cmc_api_key,
@@ -127,11 +148,15 @@ class BTCETH_CMC20_Trader:
                 'convert': 'USD'
             }
 
+            api_logger.debug(f"Calling CoinMarketCap API: {self.cmc_api_url}")
             response = requests.get(self.cmc_api_url, headers=headers, params=params)
             data = response.json()
+            api_logger.debug(f"CMC API response status: {response.status_code}")
 
             if response.status_code != 200:
-                print(f"❌ Помилка API: {data.get('status', {}).get('error_message')}")
+                error_msg = data.get('status', {}).get('error_message', 'Unknown error')
+                error_logger.error(f"CoinMarketCap API error: {error_msg}")
+                print(f"❌ Помилка API: {error_msg}")
                 return {}
 
             coins = data['data']
@@ -161,6 +186,7 @@ class BTCETH_CMC20_Trader:
                     other_18_total_market_cap += market_cap
 
             if not btc_data or not eth_data:
+                error_logger.error("BTC or ETH not found in CMC Top 20")
                 print("❌ BTC або ETH не знайдено в топ-20")
                 return {}
 
@@ -215,9 +241,13 @@ class BTCETH_CMC20_Trader:
             print(f"   ✅ ETH фінал: {eth_final_weight:.2f}%")
             print(f"   🎯 Перевірка суми: {btc_final_weight + eth_final_weight:.2f}% (має бути 100%)\n")
 
+            api_logger.info(f"CMC allocation calculated: BTC={btc_final_weight:.2f}%, ETH={eth_final_weight:.2f}%")
+            debug_logger.debug(f"Full allocation data: {allocation_data}")
             return allocation_data
 
         except Exception as e:
+            error_logger.error(f"Error fetching CMC20 index: {e}")
+            error_logger.error(traceback.format_exc())
             print(f"❌ Помилка отримання CMC20 індексу: {e}")
             return {}
 
@@ -369,9 +399,13 @@ class BTCETH_CMC20_Trader:
 
     def execute_market_order(self, symbol: str, side: str, quantity: float, quote_currency: str = "USDC",
                              dry_run: bool = False) -> bool:
-        """Виконує ринковий ордер (для сум >$5)"""
+        """Виконює ринковий ордер (для сум >$5)"""
+        trade_logger.info(f"{'='*60}")
+        trade_logger.info(f"MARKET ORDER: {side} {quantity:.8f} {symbol} for {quote_currency}")
+        trade_logger.info(f"Dry run: {dry_run}")
         try:
             if dry_run:
+                trade_logger.info(f"[DRY RUN] Would execute MARKET {side} {quantity} {symbol}")
                 print(f"[DRY RUN] MARKET {side} {quantity} {symbol}...")
                 return True
 
@@ -394,11 +428,17 @@ class BTCETH_CMC20_Trader:
                 quantity = round(quantity, precision)
 
             print(f"📊 Виконується {'КУПІВЛЯ' if side == 'BUY' else 'ПРОДАЖ'} {quantity} {symbol} (MARKET ORDER)...")
+            trade_logger.info(f"Executing {side} order for {pair}, quantity={quantity}")
 
             if side == 'BUY':
                 order = self.client.order_market_buy(symbol=pair, quantity=quantity)
             else:
                 order = self.client.order_market_sell(symbol=pair, quantity=quantity)
+
+            trade_logger.info(f"✅ Order executed successfully: {order['orderId']}")
+            trade_logger.info(f"  Executed quantity: {order['executedQty']} {symbol}")
+            trade_logger.info(f"  Quote quantity: {order['cummulativeQuoteQty']} {quote_currency}")
+            trade_logger.info(f"  Order details: {order}")
 
             print(f"✅ Ордер виконано: {order['orderId']}")
             print(f"   {'Куплено' if side == 'BUY' else 'Продано'}: {order['executedQty']} {symbol}")
@@ -406,22 +446,34 @@ class BTCETH_CMC20_Trader:
             return True
 
         except BinanceAPIException as e:
+            error_logger.error(f"❌ Binance API error for {side} {symbol}: {e}")
+            error_logger.error(f"  Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
+            error_logger.error(traceback.format_exc())
             print(f"❌ Помилка ордеру {symbol}: {e}")
             print(f"   Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
             return False
         except Exception as e:
+            error_logger.error(f"❌ Unknown error in market order {side} {symbol}: {e}")
+            error_logger.error(traceback.format_exc())
             print(f"❌ Невідома помилка: {e}")
             traceback.print_exc()
             return False
+        finally:
+            trade_logger.info(f"{'='*60}")
 
     def execute_convert(self, from_asset: str, to_asset: str, amount: float, dry_run: bool = False) -> bool:
         """Виконує конвертацію через Binance Convert API"""
+        trade_logger.info(f"{'='*60}")
+        trade_logger.info(f"CONVERT: {amount:.8f} {from_asset} → {to_asset}")
+        trade_logger.info(f"Dry run: {dry_run}")
         try:
             if dry_run:
+                trade_logger.info(f"[DRY RUN] Would convert {amount:.8f} {from_asset} → {to_asset}")
                 print(f"[DRY RUN] Конвертація {amount:.8f} {from_asset} → {to_asset}...")
                 return True
 
             print(f"🔄 Конвертація {amount:.8f} {from_asset} → {to_asset}...")
+            trade_logger.info(f"Executing convert operation...")
 
             # ⚠️ ВАЖЛИВО: Binance Convert API може мати інший метод залежно від версії бібліотеки
             # Варіант 1: Для python-binance >= 1.0.16
@@ -437,12 +489,17 @@ class BTCETH_CMC20_Trader:
                     confirm = self.client.convert_accept_quote(quoteId=result['quoteId'])
 
                     if confirm and confirm.get('status') == 'SUCCESS':
+                        trade_logger.info(f"✅ Convert executed successfully!")
+                        trade_logger.info(f"  Quote ID: {result['quoteId']}")
+                        trade_logger.info(f"  Converted: {amount} {from_asset}")
+                        trade_logger.info(f"  Received: {result.get('toAmount', 'N/A')} {to_asset}")
                         print(f"✅ Конвертацію виконано успішно!")
                         print(f"   Quote ID: {result['quoteId']}")
                         print(f"   Конвертовано: {amount} {from_asset}")
                         print(f"   Отримано: {result.get('toAmount', 'N/A')} {to_asset}")
                         return True
                     else:
+                        error_logger.error("Convert confirmation failed")
                         print(f"❌ Помилка підтвердження конвертації")
                         return False
             except AttributeError:
@@ -465,14 +522,22 @@ class BTCETH_CMC20_Trader:
                 return False
 
         except BinanceAPIException as e:
+            error_logger.error(f"❌ Binance API error converting {from_asset} → {to_asset}: {e}")
+            error_logger.error(f"  Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
+            error_logger.error(f"  Error message: {e.message if hasattr(e, 'message') else str(e)}")
+            error_logger.error(traceback.format_exc())
             print(f"❌ Помилка конвертації {from_asset} → {to_asset}: {e}")
             print(f"   Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
             print(f"   Error message: {e.message if hasattr(e, 'message') else str(e)}")
             return False
         except Exception as e:
+            error_logger.error(f"❌ Unknown error converting {from_asset} → {to_asset}: {e}")
+            error_logger.error(traceback.format_exc())
             print(f"❌ Невідома помилка конвертації: {e}")
             traceback.print_exc()
             return False
+        finally:
+            trade_logger.info(f"{'='*60}")
 
     def calculate_rebalancing_orders(self, current_balances: dict, target_allocation: dict,
                                      total_portfolio_value: float) -> dict:
@@ -699,6 +764,12 @@ class BTCETH_CMC20_Trader:
         3. Оновлює баланс
         4. Виконує купівлі з перевіркою коштів
         """
+        trade_logger.info("=" * 80)
+        trade_logger.info("🚀 PORTFOLIO REBALANCE STARTED")
+        trade_logger.info(f"Mode: {'DRY RUN (test)' if dry_run else '🔴 LIVE TRADING 🔴'}")
+        trade_logger.info(f"Timestamp: {datetime.now().isoformat()}")
+        trade_logger.info("=" * 80)
+
         print("\n" + "=" * 80)
         print(f"🚀 ПОЧАТОК РЕБАЛАНСУВАННЯ ПОРТФЕЛЯ (BTC + ETH)")
         print(f"⚠️ Режим: {'DRY RUN (тестовий)' if dry_run else '🔴 РЕАЛЬНІ ОПЕРАЦІЇ! 🔴'}")
@@ -891,6 +962,12 @@ class BTCETH_CMC20_Trader:
         print("✅ РЕБАЛАНСУВАННЯ ЗАВЕРШЕНО")
         print(f"💰 Кінцевий баланс {quote_currency}: ${available_balance:.2f}")
         print("=" * 80)
+
+        trade_logger.info("=" * 80)
+        trade_logger.info("✅ PORTFOLIO REBALANCE COMPLETED")
+        trade_logger.info(f"Final balance {quote_currency}: ${available_balance:.2f}")
+        trade_logger.info(f"Results summary: {results}")
+        trade_logger.info("=" * 80)
 
         return {
             "status": "completed",

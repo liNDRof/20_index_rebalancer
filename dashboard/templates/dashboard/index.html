@@ -199,33 +199,50 @@ let timerInterval = null;
 // 🪙 Оновлення портфеля
 async function fetchStatus(updatePortfolio = false) {
   try {
+    console.log("[fetchStatus] START - updatePortfolio:", updatePortfolio);
     const res = await fetch('{% url "dashboard:status" %}');
+    console.log("[fetchStatus] Response status:", res.status);
     const data = await res.json();
+    console.log("[fetchStatus] Data received:", data);
+    console.log("[fetchStatus] Portfolio keys:", Object.keys(data.portfolio || {}));
+    console.log("[fetchStatus] Portfolio length:", Object.keys(data.portfolio || {}).length);
 
     if (!timerPaused && data.remaining !== null) {
       remaining = data.remaining;
+      console.log("[fetchStatus] Remaining time updated:", remaining);
     }
 
     if (updatePortfolio) {
+      console.log("[fetchStatus] Calling updatePortfolioTable with:", data.portfolio);
       updatePortfolioTable(data.portfolio || {});
     }
 
     if (data.rebalance && Object.keys(data.rebalance).length > 0) {
+      console.log("[fetchStatus] Updating rebalance log");
       document.getElementById('rebalanceLog').textContent =
         JSON.stringify(data.rebalance, null, 2);
     }
+    console.log("[fetchStatus] END");
   } catch (err) {
-    console.error("Помилка отримання статусу:", err);
+    console.error("[fetchStatus] ERROR:", err);
   }
 }
 
 function updatePortfolioTable(portfolio) {
+  console.log("[updatePortfolioTable] START with portfolio:", portfolio);
+  console.log("[updatePortfolioTable] Portfolio type:", typeof portfolio);
+  console.log("[updatePortfolioTable] Is array:", Array.isArray(portfolio));
+  console.log("[updatePortfolioTable] Keys:", Object.keys(portfolio || {}));
+
   const table = document.getElementById('portfolio');
   table.innerHTML = `<tr><th>{% trans 'Asset' %}</th><th>{% trans 'Balance' %}</th><th>{% trans 'Value (USDC)' %}</th></tr>`;
 
   let totalValue = 0;
+  let itemCount = 0;
 
   for (const [symbol, info] of Object.entries(portfolio)) {
+    console.log(`[updatePortfolioTable] Processing ${symbol}:`, info);
+    itemCount++;
     let balanceText = "";
     let usdcValue = 0;
 
@@ -250,6 +267,8 @@ function updatePortfolioTable(portfolio) {
     );
   }
 
+  console.log(`[updatePortfolioTable] Added ${itemCount} items, total value: $${totalValue.toFixed(2)}`);
+
   table.insertAdjacentHTML('beforeend',
     `<tr style="background:#f3f4f6; font-weight:bold;">
       <td>{% trans 'TOTAL' %}</td>
@@ -257,6 +276,7 @@ function updatePortfolioTable(portfolio) {
       <td>$${totalValue.toFixed(2)}</td>
     </tr>`
   );
+  console.log("[updatePortfolioTable] END");
 }
 
 function updateTimerDisplay() {
@@ -356,17 +376,62 @@ document.getElementById('rebalanceBtn').onclick = async () => {
   }
 };
 
-document.getElementById('refreshBtn').onclick = () => fetchStatus(true);
+document.getElementById('refreshBtn').onclick = async () => {
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  btn.textContent = '{% trans "🔃 Refreshing..." %}';
+
+  try {
+    const res = await fetch('{% url "dashboard:refresh_portfolio" %}');
+    const data = await res.json();
+
+    if (data.status === "ok") {
+      updatePortfolioTable(data.portfolio || {});
+      console.log("Portfolio refreshed successfully");
+    } else {
+      alert('{% trans "❌ Error:" %} ' + (data.error || 'Unknown error'));
+      console.error("Error refreshing portfolio:", data.error);
+    }
+  } catch (err) {
+    console.error("Failed to refresh portfolio:", err);
+    alert('{% trans "⚠️ Failed to refresh portfolio." %}');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '{% trans "🔃 Refresh portfolio" %}';
+  }
+};
 
 // Автооновлення кожні 10 секунд
 setInterval(() => fetchStatus(true), 10000);
 
 // Ініціалізація
 window.onload = async () => {
-  await fetchStatus(true);
+  console.log("[window.onload] Page loaded, initializing...");
+
+  // First, try to fetch fresh portfolio from Binance
+  console.log("[window.onload] Attempting to refresh portfolio from Binance...");
+  try {
+    const refreshRes = await fetch('{% url "dashboard:refresh_portfolio" %}');
+    const refreshData = await refreshRes.json();
+    console.log("[window.onload] Refresh response:", refreshData);
+
+    if (refreshData.status === "ok") {
+      console.log("[window.onload] Portfolio refreshed successfully!");
+      updatePortfolioTable(refreshData.portfolio || {});
+    } else {
+      console.warn("[window.onload] Refresh failed:", refreshData.error);
+      console.log("[window.onload] Falling back to fetchStatus...");
+      await fetchStatus(true);
+    }
+  } catch (err) {
+    console.error("[window.onload] Refresh error, falling back to fetchStatus:", err);
+    await fetchStatus(true);
+  }
+
   remaining = defaultInterval;
   updateTimerDisplay();
   startTimer();
+  console.log("[window.onload] Initialization complete");
 };
   </script>
 {% endblock %}

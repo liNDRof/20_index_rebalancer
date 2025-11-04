@@ -49,6 +49,11 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Custom logging middleware
+    'crypto_trader.middleware.RequestLoggingMiddleware',
+    'crypto_trader.middleware.ExceptionLoggingMiddleware',
+    'crypto_trader.middleware.PerformanceLoggingMiddleware',
+    'crypto_trader.middleware.UserActivityLoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'crypto_trader.urls'
@@ -140,3 +145,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# Initialize custom logging system
+from crypto_trader.logging_config import setup_logging
+setup_logging()

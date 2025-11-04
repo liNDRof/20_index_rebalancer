@@ -12,6 +12,7 @@ urlpatterns = [
     path('start/', views.start_trader, name='start_trader'),
     path('stop/', views.stop_trader, name='stop_trader'),
     path('status/', views.get_status, name='status'),
+    path('refresh_portfolio/', views.refresh_portfolio, name='refresh_portfolio'),
     path('update_default_interval/', views.update_default_interval, name='update_default_interval'),
     path('set_next_rebalance_time/', views.set_next_rebalance_time, name='set_next_rebalance_time'),
     path('manual_rebalance/', views.manual_rebalance, name='manual_rebalance'),
