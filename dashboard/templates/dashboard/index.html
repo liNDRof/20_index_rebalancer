@@ -465,10 +465,6 @@
     td strong {
       color: #0f172a;
       font-weight: 700;
-      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
     }
 
     /* Total Row */
@@ -649,20 +645,20 @@
             <input id="nextSeconds" type="number" min="0" value="0">
           </label>
         </div>
-        <button id="setNextRebalanceBtn">✅ {% trans 'Set time' %}</button>
+        <button id="setNextRebalanceBtn">{% trans 'Set time' %}</button>
         <button id="stopBtn">⏹ {% trans 'Stop timer' %}</button>
 
-        <div class="timer-info" id="timer">⏳ {% trans 'Until next rebalance' %}: ...</div>
+        <div class="timer-info" id="timer">{% trans 'Until next rebalance' %}: ...</div>
       </div>
     </div>
 
     <!-- Portfolio Block -->
     <div class="block">
       <div class="portfolio-header">
-        <h2 class="section-title" style="margin:0; border:0;">📊 {% trans 'Current portfolio' %}</h2>
+        <h2 class="section-title" style="margin:0; border:0;">{% trans 'Current portfolio' %}</h2>
         <div class="portfolio-toolbar">
-          <button id="rebalanceBtn">🔄 {% trans 'Rebalance now' %}</button>
-          <button id="refreshBtn">🔃 {% trans 'Refresh portfolio' %}</button>
+          <button id="rebalanceBtn">{% trans 'Rebalance now' %}</button>
+          <button id="refreshBtn">{% trans 'Refresh portfolio' %}</button>
         </div>
       </div>
 
@@ -681,7 +677,7 @@
 
     <!-- Last Rebalance Block -->
     <div class="block">
-      <h2 class="section-title">📘 {% trans 'Last rebalance' %}</h2>
+      <h2 class="section-title">{% trans 'Last rebalance' %}</h2>
       <pre id="rebalanceLog">{% trans 'Waiting for data...' %}</pre>
     </div>
     {% endif %}
@@ -779,13 +775,13 @@ function updatePortfolioTable(portfolio) {
 function updateTimerDisplay() {
   const el = document.getElementById('timer');
   if (remaining <= 0) {
-    el.textContent = '{% trans "✅ Rebalance time reached!" %}';
+    el.textContent = '{% trans "Rebalance time reached!" %}';
   } else {
     const d = Math.floor(remaining / 86400);
     const h = Math.floor((remaining % 86400) / 3600);
     const m = Math.floor((remaining % 3600) / 60);
     const s = remaining % 60;
-    el.textContent = `⏳ {% trans 'Remaining' %}: ${d}d ${h}h ${m}m ${s}s`;
+    el.textContent = `{% trans 'Remaining' %}: ${d}d ${h}h ${m}m ${s}s`;
   }
 }
 
@@ -801,7 +797,7 @@ function startTimer() {
 }
 
 async function onTimerEnd() {
-  document.getElementById('timer').textContent = '{% trans "🔄 Rebalancing in progress..." %}';
+  document.getElementById('timer').textContent = '{% trans "Rebalancing in progress..." %}';
   try {
     await fetch('{% url "dashboard:manual_rebalance" %}');
     await fetchStatus(true);
@@ -831,7 +827,7 @@ document.getElementById('saveDefaultIntervalBtn').onclick = () => {
   const m = Number(document.getElementById('defMinutes').value) || 0;
   const s = Number(document.getElementById('defSeconds').value) || 0;
   defaultInterval = d * 86400 + h * 3600 + m * 60 + s;
-  alert(`✅ {% trans 'New default interval' %}: ${defaultInterval} {% trans 'sec' %}.`);
+  alert(`{% trans 'New default interval' %}: ${defaultInterval} {% trans 'sec' %}.`);
 };
 
 document.getElementById('setNextRebalanceBtn').onclick = () => {
@@ -852,14 +848,14 @@ document.getElementById('rebalanceBtn').onclick = async () => {
 
   const btn = document.getElementById('rebalanceBtn');
   btn.disabled = true;
-  btn.textContent = '{% trans "🔄 Rebalancing..." %}';
+  btn.textContent = '{% trans "Rebalancing..." %}';
 
   try {
     const res = await fetch('{% url "dashboard:manual_rebalance" %}');
     const data = await res.json();
 
     if (data.status === "ok") {
-      alert('{% trans "✅ Rebalance completed!" %}');
+      alert('{% trans "Rebalance completed!" %}');
       await fetchStatus(true);
     } else {
       alert('{% trans "❌ Error:" %} ' + (data.error || 'Unknown error'));
@@ -869,14 +865,14 @@ document.getElementById('rebalanceBtn').onclick = async () => {
     alert('{% trans "⚠️ Failed to perform rebalance." %}');
   } finally {
     btn.disabled = false;
-  btn.textContent = '{% trans "🔄 Rebalance now" %}';
+  btn.textContent = '{% trans "Rebalance now" %}';
   }
 };
 
 document.getElementById('refreshBtn').onclick = async () => {
   const btn = document.getElementById('refreshBtn');
   btn.disabled = true;
-  btn.textContent = '{% trans "🔃 Refreshing..." %}';
+  btn.textContent = '{% trans "Refreshing..." %}';
 
   try {
     const res = await fetch('{% url "dashboard:refresh_portfolio" %}');
@@ -894,7 +890,7 @@ document.getElementById('refreshBtn').onclick = async () => {
     alert('{% trans "⚠️ Failed to refresh portfolio." %}');
   } finally {
     btn.disabled = false;
-    btn.textContent = '{% trans "🔃 Refresh portfolio" %}';
+    btn.textContent = '{% trans "Refresh portfolio" %}';
   }
 };
 
