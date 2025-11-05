@@ -52,11 +52,31 @@ def setup_logging():
     general_logger.addHandler(general_handler)
 
     # Also log to console
-    # NOTE: We don't wrap sys.stdout/stderr as it interferes with Django's StatReloader
-    # Instead, we rely on the formatter to handle encoding properly
+    # Wrap sys.stdout with UTF-8 encoding to handle emoji characters on Windows
     import sys
+    import io
 
-    console_handler = logging.StreamHandler(sys.stdout)
+    # Create a UTF-8 wrapper for stdout to handle emoji characters
+    # This prevents UnicodeEncodeError on Windows (cp1251 encoding)
+    try:
+        # Try to reconfigure stdout to UTF-8 (Python 3.7+)
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+            console_stream = sys.stdout
+        else:
+            # Fallback for older Python versions
+            console_stream = io.TextIOWrapper(
+                sys.stdout.buffer,
+                encoding='utf-8',
+                errors='replace',
+                line_buffering=True
+            )
+    except (AttributeError, io.UnsupportedOperation):
+        # If stdout doesn't have buffer (e.g., in some test environments)
+        # use default stdout but set errors='replace' in the formatter
+        console_stream = sys.stdout
+
+    console_handler = logging.StreamHandler(console_stream)
     console_handler.setFormatter(detailed_formatter)
     general_logger.addHandler(console_handler)
 
@@ -114,6 +134,7 @@ def setup_logging():
     )
     request_handler.setFormatter(detailed_formatter)
     request_logger.addHandler(request_handler)
+    request_logger.addHandler(console_handler)  # Also to console
 
     # ============================================
     # 6. PERFORMANCE LOGGER - Performance metrics
@@ -127,6 +148,7 @@ def setup_logging():
     )
     perf_handler.setFormatter(detailed_formatter)
     perf_logger.addHandler(perf_handler)
+    perf_logger.addHandler(console_handler)  # Also to console
 
     # ============================================
     # 7. USER ACTIVITY LOGGER - User actions
@@ -140,6 +162,7 @@ def setup_logging():
     )
     activity_handler.setFormatter(detailed_formatter)
     activity_logger.addHandler(activity_handler)
+    activity_logger.addHandler(console_handler)  # Also to console
 
     # ============================================
     # 8. DEBUG LOGGER - Detailed debug information
