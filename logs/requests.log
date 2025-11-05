@@ -1,0 +1,54 @@
+2025-11-05 08:17:26 [    INFO] requests - >>> REQUEST | GET / | User: Anonymous | IP: 127.0.0.1
+2025-11-05 08:17:26 [ WARNING] requests - <<< RESPONSE | GET / | User: Anonymous | Status: 404 (CLIENT_ERROR) | Duration: 0.026s
+2025-11-05 08:17:26 [    INFO] requests - >>> REQUEST | GET /en/ | User: Anonymous | IP: 127.0.0.1
+2025-11-05 08:17:26 [    INFO] requests - <<< RESPONSE | GET /en/ | User: Anonymous | Status: 302 (REDIRECT) | Duration: 0.020s
+2025-11-05 08:17:27 [    INFO] requests - >>> REQUEST | GET /login/ | User: Anonymous | IP: 127.0.0.1
+2025-11-05 08:17:27 [ WARNING] requests - <<< RESPONSE | GET /login/ | User: Anonymous | Status: 404 (CLIENT_ERROR) | Duration: 0.013s
+2025-11-05 08:17:27 [    INFO] requests - >>> REQUEST | GET /en/login/ | User: Anonymous | IP: 127.0.0.1
+2025-11-05 08:17:27 [    INFO] requests - <<< RESPONSE | GET /en/login/ | User: Anonymous | Status: 200 (SUCCESS) | Duration: 0.035s
+2025-11-05 08:18:01 [    INFO] requests - >>> REQUEST | GET /en/login/ | User: Anonymous | IP: 127.0.0.1
+2025-11-05 08:18:01 [    INFO] requests - <<< RESPONSE | GET /en/login/ | User: Anonymous | Status: 200 (SUCCESS) | Duration: 0.053s
+2025-11-05 08:18:35 [    INFO] requests - >>> REQUEST | GET /en/login/ | User: Anonymous | IP: 127.0.0.1
+2025-11-05 08:18:35 [    INFO] requests - <<< RESPONSE | GET /en/login/ | User: Anonymous | Status: 200 (SUCCESS) | Duration: 0.055s
+2025-11-05 08:18:42 [    INFO] requests - >>> REQUEST | POST /en/login/ | User: Anonymous | IP: 127.0.0.1
+2025-11-05 08:18:43 [    INFO] requests - <<< RESPONSE | POST /en/login/ | User: Anonymous | Status: 200 (SUCCESS) | Duration: 0.456s
+2025-11-05 08:18:50 [    INFO] requests - >>> REQUEST | POST /en/login/ | User: Anonymous | IP: 127.0.0.1
+2025-11-05 08:18:50 [    INFO] requests - <<< RESPONSE | POST /en/login/ | User: admin | Status: 302 (REDIRECT) | Duration: 0.510s
+2025-11-05 08:18:50 [    INFO] requests - >>> REQUEST | GET /en/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:18:50 [    INFO] requests - <<< RESPONSE | GET /en/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.032s
+2025-11-05 08:18:58 [    INFO] requests - >>> REQUEST | GET /en/profile/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:18:58 [    INFO] requests - <<< RESPONSE | GET /en/profile/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.042s
+2025-11-05 08:19:27 [    INFO] requests - >>> REQUEST | POST /en/profile/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:27 [    INFO] requests - <<< RESPONSE | POST /en/profile/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.032s
+2025-11-05 08:19:30 [    INFO] requests - >>> REQUEST | GET /en/profile/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:30 [    INFO] requests - <<< RESPONSE | GET /en/profile/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.040s
+2025-11-05 08:19:34 [    INFO] requests - >>> REQUEST | GET /en/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:34 [    INFO] requests - <<< RESPONSE | GET /en/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.017s
+2025-11-05 08:19:34 [    INFO] requests - >>> REQUEST | GET /en/refresh_portfolio/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:35 [    INFO] requests - <<< RESPONSE | GET /en/refresh_portfolio/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.752s
+2025-11-05 08:19:35 [    INFO] requests - >>> REQUEST | GET /en/status/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:35 [    INFO] requests - <<< RESPONSE | GET /en/status/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.020s
+2025-11-05 08:19:44 [    INFO] requests - >>> REQUEST | GET /en/status/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:44 [    INFO] requests - <<< RESPONSE | GET /en/status/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.017s
+2025-11-05 08:19:53 [    INFO] requests - >>> REQUEST | GET /en/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:54 [    INFO] requests - <<< RESPONSE | GET /en/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.016s
+2025-11-05 08:19:54 [    INFO] requests - >>> REQUEST | GET /en/refresh_portfolio/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:55 [    INFO] requests - <<< RESPONSE | GET /en/refresh_portfolio/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.809s
+2025-11-05 08:19:55 [    INFO] requests - >>> REQUEST | GET /en/status/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:19:55 [    INFO] requests - <<< RESPONSE | GET /en/status/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.023s
+2025-11-05 08:19:58 [    INFO] requests - >>> REQUEST | GET /en/manual_rebalance/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:20:02 [    INFO] requests - <<< RESPONSE | GET /en/manual_rebalance/ | User: admin | Status: 200 (SUCCESS) | Duration: 3.897s
+2025-11-05 08:20:23 [    INFO] requests - >>> REQUEST | GET /en/status/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:20:23 [    INFO] requests - <<< RESPONSE | GET /en/status/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.033s
+2025-11-05 08:20:23 [    INFO] requests - >>> REQUEST | GET /en/status/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:20:23 [    INFO] requests - <<< RESPONSE | GET /en/status/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.017s
+2025-11-05 08:20:24 [    INFO] requests - >>> REQUEST | GET /en/status/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:20:24 [    INFO] requests - <<< RESPONSE | GET /en/status/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.019s
+2025-11-05 08:20:31 [    INFO] requests - >>> REQUEST | GET /en/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:20:31 [    INFO] requests - <<< RESPONSE | GET /en/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.017s
+2025-11-05 08:20:31 [    INFO] requests - >>> REQUEST | GET /en/refresh_portfolio/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:20:32 [    INFO] requests - <<< RESPONSE | GET /en/refresh_portfolio/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.582s
+2025-11-05 08:20:32 [    INFO] requests - >>> REQUEST | GET /en/status/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:20:32 [    INFO] requests - <<< RESPONSE | GET /en/status/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.030s
+2025-11-05 08:20:38 [    INFO] requests - >>> REQUEST | GET /en/profile/ | User: admin | IP: 127.0.0.1
+2025-11-05 08:20:38 [    INFO] requests - <<< RESPONSE | GET /en/profile/ | User: admin | Status: 200 (SUCCESS) | Duration: 0.026s
