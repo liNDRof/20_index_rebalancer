@@ -1,0 +1,149 @@
+2025-11-05 08:17:23 [    INFO] general - ================================================================================
+2025-11-05 08:17:23 [    INFO] general - LOGGING SYSTEM INITIALIZED
+2025-11-05 08:17:23 [    INFO] general - Log directory: C:\Users\Макар\PycharmProjects\CryptoIndex\20_index_rebalancer\logs
+2025-11-05 08:17:23 [    INFO] general - ================================================================================
+2025-11-05 08:17:24 [    INFO] general - ================================================================================
+2025-11-05 08:17:24 [    INFO] general - LOGGING SYSTEM INITIALIZED
+2025-11-05 08:17:24 [    INFO] general - Log directory: C:\Users\Макар\PycharmProjects\CryptoIndex\20_index_rebalancer\logs
+2025-11-05 08:17:24 [    INFO] general - ================================================================================
+2025-11-05 08:17:58 [    INFO] general - ================================================================================
+2025-11-05 08:17:58 [    INFO] general - LOGGING SYSTEM INITIALIZED
+2025-11-05 08:17:58 [    INFO] general - Log directory: C:\Users\Макар\PycharmProjects\CryptoIndex\20_index_rebalancer\logs
+2025-11-05 08:17:58 [    INFO] general - ================================================================================
+2025-11-05 08:17:59 [    INFO] general - ================================================================================
+2025-11-05 08:17:59 [    INFO] general - LOGGING SYSTEM INITIALIZED
+2025-11-05 08:17:59 [    INFO] general - Log directory: C:\Users\Макар\PycharmProjects\CryptoIndex\20_index_rebalancer\logs
+2025-11-05 08:17:59 [    INFO] general - ================================================================================
+2025-11-05 08:18:29 [    INFO] general - ================================================================================
+2025-11-05 08:18:29 [    INFO] general - LOGGING SYSTEM INITIALIZED
+2025-11-05 08:18:29 [    INFO] general - Log directory: C:\Users\Макар\PycharmProjects\CryptoIndex\20_index_rebalancer\logs
+2025-11-05 08:18:29 [    INFO] general - ================================================================================
+2025-11-05 08:18:30 [    INFO] general - ================================================================================
+2025-11-05 08:18:30 [    INFO] general - LOGGING SYSTEM INITIALIZED
+2025-11-05 08:18:30 [    INFO] general - Log directory: C:\Users\Макар\PycharmProjects\CryptoIndex\20_index_rebalancer\logs
+2025-11-05 08:18:30 [    INFO] general - ================================================================================
+2025-11-05 08:19:34 [    INFO] general - [admin] ========== refresh_portfolio called ==========
+2025-11-05 08:19:34 [    INFO] general - [admin] User profile:
+2025-11-05 08:19:34 [    INFO] general -   - has_binance_credentials: True
+2025-11-05 08:19:34 [    INFO] general -   - cmc_api_key: not set
+2025-11-05 08:19:34 [    INFO] general -   - default_interval: 3600
+2025-11-05 08:19:34 [    INFO] general - [admin] Creating trader instance...
+2025-11-05 08:19:35 [    INFO] general - [admin] Trader instance created successfully
+2025-11-05 08:19:35 [    INFO] general - [admin] Calling trader.get_all_binance_balances()...
+2025-11-05 08:19:35 [    INFO] general - [admin] Portfolio fetched successfully:
+2025-11-05 08:19:35 [    INFO] general -   - Number of assets: 1
+2025-11-05 08:19:35 [    INFO] general -   - Total value: $1.42905115
+2025-11-05 08:19:35 [    INFO] general -   - Balances data: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:19:35 [    INFO] general - [admin] Saving portfolio to session...
+2025-11-05 08:19:35 [    INFO] general - [admin] Portfolio saved to session
+2025-11-05 08:19:35 [    INFO] general - [admin] Returning response: {'status': 'ok', 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'total_value': 1.42905115}
+2025-11-05 08:19:35 [    INFO] general - [admin] ========== refresh_portfolio END (SUCCESS) ==========
+2025-11-05 08:19:35 [    INFO] general - [admin] ========== get_status called ==========
+2025-11-05 08:19:35 [    INFO] general - [admin] Session data:
+2025-11-05 08:19:35 [    INFO] general -   - is_running: False
+2025-11-05 08:19:35 [    INFO] general -   - dry_run_mode: True
+2025-11-05 08:19:35 [    INFO] general -   - last_portfolio type: <class 'dict'>
+2025-11-05 08:19:35 [    INFO] general -   - last_portfolio: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:19:35 [    INFO] general -   - portfolio_items: 1
+2025-11-05 08:19:35 [    INFO] general -   - last_rebalance_result: {}
+2025-11-05 08:19:35 [    INFO] general -   - rebalance_data items: 0
+2025-11-05 08:19:35 [    INFO] general - [admin] Returning response: {'is_running': False, 'remaining': None, 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'rebalance': {}, 'dry_run_mode': True}
+2025-11-05 08:19:35 [    INFO] general - [admin] ========== get_status END ==========
+2025-11-05 08:19:44 [    INFO] general - [admin] ========== get_status called ==========
+2025-11-05 08:19:44 [    INFO] general - [admin] Session data:
+2025-11-05 08:19:44 [    INFO] general -   - is_running: False
+2025-11-05 08:19:44 [    INFO] general -   - dry_run_mode: True
+2025-11-05 08:19:44 [    INFO] general -   - last_portfolio type: <class 'dict'>
+2025-11-05 08:19:44 [    INFO] general -   - last_portfolio: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:19:44 [    INFO] general -   - portfolio_items: 1
+2025-11-05 08:19:44 [    INFO] general -   - last_rebalance_result: {}
+2025-11-05 08:19:44 [    INFO] general -   - rebalance_data items: 0
+2025-11-05 08:19:44 [    INFO] general - [admin] Returning response: {'is_running': False, 'remaining': None, 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'rebalance': {}, 'dry_run_mode': True}
+2025-11-05 08:19:44 [    INFO] general - [admin] ========== get_status END ==========
+2025-11-05 08:19:54 [    INFO] general - [admin] ========== refresh_portfolio called ==========
+2025-11-05 08:19:54 [    INFO] general - [admin] User profile:
+2025-11-05 08:19:54 [    INFO] general -   - has_binance_credentials: True
+2025-11-05 08:19:54 [    INFO] general -   - cmc_api_key: not set
+2025-11-05 08:19:54 [    INFO] general -   - default_interval: 3600
+2025-11-05 08:19:54 [    INFO] general - [admin] Creating trader instance...
+2025-11-05 08:19:54 [    INFO] general - [admin] Trader instance created successfully
+2025-11-05 08:19:54 [    INFO] general - [admin] Calling trader.get_all_binance_balances()...
+2025-11-05 08:19:55 [    INFO] general - [admin] Portfolio fetched successfully:
+2025-11-05 08:19:55 [    INFO] general -   - Number of assets: 1
+2025-11-05 08:19:55 [    INFO] general -   - Total value: $1.42905115
+2025-11-05 08:19:55 [    INFO] general -   - Balances data: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:19:55 [    INFO] general - [admin] Saving portfolio to session...
+2025-11-05 08:19:55 [    INFO] general - [admin] Portfolio saved to session
+2025-11-05 08:19:55 [    INFO] general - [admin] Returning response: {'status': 'ok', 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'total_value': 1.42905115}
+2025-11-05 08:19:55 [    INFO] general - [admin] ========== refresh_portfolio END (SUCCESS) ==========
+2025-11-05 08:19:55 [    INFO] general - [admin] ========== get_status called ==========
+2025-11-05 08:19:55 [    INFO] general - [admin] Session data:
+2025-11-05 08:19:55 [    INFO] general -   - is_running: False
+2025-11-05 08:19:55 [    INFO] general -   - dry_run_mode: True
+2025-11-05 08:19:55 [    INFO] general -   - last_portfolio type: <class 'dict'>
+2025-11-05 08:19:55 [    INFO] general -   - last_portfolio: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:19:55 [    INFO] general -   - portfolio_items: 1
+2025-11-05 08:19:55 [    INFO] general -   - last_rebalance_result: {}
+2025-11-05 08:19:55 [    INFO] general -   - rebalance_data items: 0
+2025-11-05 08:19:55 [    INFO] general - [admin] Returning response: {'is_running': False, 'remaining': None, 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'rebalance': {}, 'dry_run_mode': True}
+2025-11-05 08:19:55 [    INFO] general - [admin] ========== get_status END ==========
+2025-11-05 08:20:23 [    INFO] general - [admin] ========== get_status called ==========
+2025-11-05 08:20:23 [    INFO] general - [admin] Session data:
+2025-11-05 08:20:23 [    INFO] general -   - is_running: False
+2025-11-05 08:20:23 [    INFO] general -   - dry_run_mode: True
+2025-11-05 08:20:23 [    INFO] general -   - last_portfolio type: <class 'dict'>
+2025-11-05 08:20:23 [    INFO] general -   - last_portfolio: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:20:23 [    INFO] general -   - portfolio_items: 1
+2025-11-05 08:20:23 [    INFO] general -   - last_rebalance_result: {'status': 'dry_run', 'operations': {'sell_orders': {}, 'sell_convert': {}, 'buy_orders': {}, 'buy_convert': {'ETH': {'from_asset': 'USDT', 'to_asset': 'ETH', 'amount': 0.3200664792355086, 'type': 'convert', 'reason': 'below_lot_size(0.00009635<0.0001)'}}}, 'message': 'Dry run completed'}
+2025-11-05 08:20:23 [    INFO] general -   - rebalance_data items: 3
+2025-11-05 08:20:23 [    INFO] general - [admin] Returning response: {'is_running': False, 'remaining': None, 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'rebalance': {'status': 'dry_run', 'operations': {'sell_orders': {}, 'sell_convert': {}, 'buy_orders': {}, 'buy_convert': {'ETH': {'from_asset': 'USDT', 'to_asset': 'ETH', 'amount': 0.3200664792355086, 'type': 'convert', 'reason': 'below_lot_size(0.00009635<0.0001)'}}}, 'message': 'Dry run completed'}, 'dry_run_mode': True}
+2025-11-05 08:20:23 [    INFO] general - [admin] ========== get_status END ==========
+2025-11-05 08:20:23 [    INFO] general - [admin] ========== get_status called ==========
+2025-11-05 08:20:23 [    INFO] general - [admin] Session data:
+2025-11-05 08:20:23 [    INFO] general -   - is_running: False
+2025-11-05 08:20:23 [    INFO] general -   - dry_run_mode: True
+2025-11-05 08:20:23 [    INFO] general -   - last_portfolio type: <class 'dict'>
+2025-11-05 08:20:23 [    INFO] general -   - last_portfolio: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:20:23 [    INFO] general -   - portfolio_items: 1
+2025-11-05 08:20:23 [    INFO] general -   - last_rebalance_result: {'status': 'dry_run', 'operations': {'sell_orders': {}, 'sell_convert': {}, 'buy_orders': {}, 'buy_convert': {'ETH': {'from_asset': 'USDT', 'to_asset': 'ETH', 'amount': 0.3200664792355086, 'type': 'convert', 'reason': 'below_lot_size(0.00009635<0.0001)'}}}, 'message': 'Dry run completed'}
+2025-11-05 08:20:23 [    INFO] general -   - rebalance_data items: 3
+2025-11-05 08:20:23 [    INFO] general - [admin] Returning response: {'is_running': False, 'remaining': None, 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'rebalance': {'status': 'dry_run', 'operations': {'sell_orders': {}, 'sell_convert': {}, 'buy_orders': {}, 'buy_convert': {'ETH': {'from_asset': 'USDT', 'to_asset': 'ETH', 'amount': 0.3200664792355086, 'type': 'convert', 'reason': 'below_lot_size(0.00009635<0.0001)'}}}, 'message': 'Dry run completed'}, 'dry_run_mode': True}
+2025-11-05 08:20:23 [    INFO] general - [admin] ========== get_status END ==========
+2025-11-05 08:20:24 [    INFO] general - [admin] ========== get_status called ==========
+2025-11-05 08:20:24 [    INFO] general - [admin] Session data:
+2025-11-05 08:20:24 [    INFO] general -   - is_running: False
+2025-11-05 08:20:24 [    INFO] general -   - dry_run_mode: True
+2025-11-05 08:20:24 [    INFO] general -   - last_portfolio type: <class 'dict'>
+2025-11-05 08:20:24 [    INFO] general -   - last_portfolio: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:20:24 [    INFO] general -   - portfolio_items: 1
+2025-11-05 08:20:24 [    INFO] general -   - last_rebalance_result: {'status': 'dry_run', 'operations': {'sell_orders': {}, 'sell_convert': {}, 'buy_orders': {}, 'buy_convert': {'ETH': {'from_asset': 'USDT', 'to_asset': 'ETH', 'amount': 0.3200664792355086, 'type': 'convert', 'reason': 'below_lot_size(0.00009635<0.0001)'}}}, 'message': 'Dry run completed'}
+2025-11-05 08:20:24 [    INFO] general -   - rebalance_data items: 3
+2025-11-05 08:20:24 [    INFO] general - [admin] Returning response: {'is_running': False, 'remaining': None, 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'rebalance': {'status': 'dry_run', 'operations': {'sell_orders': {}, 'sell_convert': {}, 'buy_orders': {}, 'buy_convert': {'ETH': {'from_asset': 'USDT', 'to_asset': 'ETH', 'amount': 0.3200664792355086, 'type': 'convert', 'reason': 'below_lot_size(0.00009635<0.0001)'}}}, 'message': 'Dry run completed'}, 'dry_run_mode': True}
+2025-11-05 08:20:24 [    INFO] general - [admin] ========== get_status END ==========
+2025-11-05 08:20:31 [    INFO] general - [admin] ========== refresh_portfolio called ==========
+2025-11-05 08:20:31 [    INFO] general - [admin] User profile:
+2025-11-05 08:20:31 [    INFO] general -   - has_binance_credentials: True
+2025-11-05 08:20:31 [    INFO] general -   - cmc_api_key: not set
+2025-11-05 08:20:31 [    INFO] general -   - default_interval: 3600
+2025-11-05 08:20:31 [    INFO] general - [admin] Creating trader instance...
+2025-11-05 08:20:32 [    INFO] general - [admin] Trader instance created successfully
+2025-11-05 08:20:32 [    INFO] general - [admin] Calling trader.get_all_binance_balances()...
+2025-11-05 08:20:32 [    INFO] general - [admin] Portfolio fetched successfully:
+2025-11-05 08:20:32 [    INFO] general -   - Number of assets: 1
+2025-11-05 08:20:32 [    INFO] general -   - Total value: $1.42905115
+2025-11-05 08:20:32 [    INFO] general -   - Balances data: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:20:32 [    INFO] general - [admin] Saving portfolio to session...
+2025-11-05 08:20:32 [    INFO] general - [admin] Portfolio saved to session
+2025-11-05 08:20:32 [    INFO] general - [admin] Returning response: {'status': 'ok', 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'total_value': 1.42905115}
+2025-11-05 08:20:32 [    INFO] general - [admin] ========== refresh_portfolio END (SUCCESS) ==========
+2025-11-05 08:20:32 [    INFO] general - [admin] ========== get_status called ==========
+2025-11-05 08:20:32 [    INFO] general - [admin] Session data:
+2025-11-05 08:20:32 [    INFO] general -   - is_running: False
+2025-11-05 08:20:32 [    INFO] general -   - dry_run_mode: True
+2025-11-05 08:20:32 [    INFO] general -   - last_portfolio type: <class 'dict'>
+2025-11-05 08:20:32 [    INFO] general -   - last_portfolio: {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}
+2025-11-05 08:20:32 [    INFO] general -   - portfolio_items: 1
+2025-11-05 08:20:32 [    INFO] general -   - last_rebalance_result: {'status': 'dry_run', 'operations': {'sell_orders': {}, 'sell_convert': {}, 'buy_orders': {}, 'buy_convert': {'ETH': {'from_asset': 'USDT', 'to_asset': 'ETH', 'amount': 0.3200664792355086, 'type': 'convert', 'reason': 'below_lot_size(0.00009635<0.0001)'}}}, 'message': 'Dry run completed'}
+2025-11-05 08:20:32 [    INFO] general -   - rebalance_data items: 3
+2025-11-05 08:20:32 [    INFO] general - [admin] Returning response: {'is_running': False, 'remaining': None, 'portfolio': {'USDT': {'free': 1.42905115, 'locked': 0.0, 'total': 1.42905115, 'usdc_value': 1.42905115}}, 'rebalance': {'status': 'dry_run', 'operations': {'sell_orders': {}, 'sell_convert': {}, 'buy_orders': {}, 'buy_convert': {'ETH': {'from_asset': 'USDT', 'to_asset': 'ETH', 'amount': 0.3200664792355086, 'type': 'convert', 'reason': 'below_lot_size(0.00009635<0.0001)'}}}, 'message': 'Dry run completed'}, 'dry_run_mode': True}
+2025-11-05 08:20:32 [    INFO] general - [admin] ========== get_status END ==========
