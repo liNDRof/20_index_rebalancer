@@ -17,19 +17,16 @@ A Django-based cryptocurrency portfolio rebalancing application with multi-user 
 │   ├── views.py          # View logic (multi-user support)
 │   ├── urls.py           # Dashboard URLs
 │   ├── admin.py          # Django admin configuration
+│   ├── apps.py           # App configuration
 │   ├── templates/        # HTML templates
 │   │   └── dashboard/
-│   │       ├── base.html      # Base template with navbar
+│   │       ├── base.html      # Base template with navbar and CSS
 │   │       ├── index.html     # Main dashboard
 │   │       ├── login.html     # Login page
 │   │       ├── register.html  # Registration page
 │   │       └── profile.html   # User profile & settings
-│   ├── static/           # Static assets (CSS, JS)
+│   ├── static/           # Static assets
 │   │   └── dashboard/
-│   │       ├── dashboard.js       # Main dashboard functionality
-│   │       ├── dashboard.css      # Base styles
-│   │       ├── crypto-theme.css   # Crypto-themed design
-│   │       ├── crypto-effects.js  # Visual effects
 │   │       └── i18n-switch.js    # Language switcher
 │   └── migrations/       # Database migrations
 │
@@ -152,10 +149,10 @@ Structured logging across multiple files:
 ## 🛠️ Technologies
 
 - **Backend**: Django 5.0+
-- **Trading**: CCXT library
-- **Frontend**: Vanilla JavaScript, CSS
+- **Trading**: python-binance library
+- **Frontend**: Vanilla JavaScript, CSS (embedded in templates)
 - **Database**: SQLite (default)
-- **API**: Binance REST API
+- **API**: Binance REST API, CoinMarketCap API
 
 ## 📄 License
 

@@ -976,50 +976,7 @@ class BTCETH_CMC20_Trader:
             "timestamp": datetime.now().isoformat()
         }
 
-    def _place_market_order(self, side: str, pair: str, quantity: float, dry_run: bool = True) -> bool:
-        """
-        Спробувати виконати MARKET ордер. Повертає True якщо ордер поставлено успішно (або dry_run),
-        False при помилці / невдалому виконанні.
-        """
-        try:
-            if dry_run:
-                print(f"[DRY] Would place MARKET {side} {pair} qty={quantity}")
-                return True
 
-            # Для Binance API: order_market_buy / order_market_sell (підлаштуй, якщо інша бібліотека)
-            if side.upper() == "BUY":
-                res = self.client.order_market_buy(symbol=pair, quantity=quantity)
-            else:
-                res = self.client.order_market_sell(symbol=pair, quantity=quantity)
-
-            # простий пошук ознаки успішності — може варіюватись в залежності від клієнта
-            status = res.get("status") if isinstance(res, dict) else None
-            print("Market order response:", res)
-            return status in ("FILLED", "NEW", "PARTIALLY_FILLED") or bool(res)
-        except Exception as e:
-            print(f"Market order error for {side} {pair}: {e}")
-            return False
-
-    def _fallback_to_convert(self, from_asset: str, to_asset: str, amount_usd: float, dry_run: bool = True):
-        """
-        Викликати механізм конвертації (BINANCE CONVERT або свій метод execute_convert).
-        amount_usd — сума в котирувальній валюті (USD/USDC) для convert.
-        Потрібно щоб у класі був метод execute_convert(from_asset, to_asset, amount, dry_run)
-        або підмінити виклик на реальний endpoint.
-        """
-        print(f"Fallback to convert: {from_asset} -> {to_asset} amount ${amount_usd:.2f}")
-        # Якщо є execute_convert — використовуй його
-        if hasattr(self, "execute_convert"):
-            try:
-                return self.execute_convert(from_asset=from_asset, to_asset=to_asset, amount=amount_usd,
-                                            dry_run=dry_run)
-            except Exception as e:
-                print("execute_convert failed:", e)
-                return None
-
-        # Якщо execute_convert відсутній — просто логнемо (або реалізуй свій convert тут)
-        print("No execute_convert method available — implement convert logic here.")
-        return None
 
     def run_continuous_rebalance(self, dry_run=False):
         """Постійне ребалансування кожні N секунд згідно з .env"""
@@ -1068,19 +1025,4 @@ class BTCETH_CMC20_Trader:
                 time.sleep(interval_seconds)
 
 
-# Приклад використання
-# if __name__ == "__main__":
-#     trader = BTCETH_CMC20_Trader()
-#
-#     РЕЖИМ 1: Одноразове ребалансування (тестовий режим)
-#     trader.execute_portfolio_rebalance(dry_run=True)
-#
-#     РЕЖИМ 2: Одноразове ребалансування (реальні конвертації)
-#     trader.execute_portfolio_rebalance(dry_run=False)
-#
-#     РЕЖИМ 3: Постійне автоматичне ребалансування кожну годину (як в .env)
-#     Тестовий режим (безпечно для тестування)
-#     trader.run_continuous_rebalance(dry_run=False)
-#
-#     Реальні конвертації (розкоментуй коли готовий до продакшену)
-#     trader.run_continuous_rebalance(dry_run=False)
+
