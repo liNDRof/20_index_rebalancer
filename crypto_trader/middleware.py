@@ -203,7 +203,7 @@ class PerformanceLoggingMiddleware(MiddlewareMixin):
                     user = request.user.username
 
                 perf_logger.warning(
-                    f"⚠️  SLOW REQUEST | {request.method} {request.path} | "
+                    f"[SLOW REQUEST] {request.method} {request.path} | "
                     f"User: {user} | Duration: {duration:.3f}s | "
                     f"Status: {response.status_code} | "
                     f"Threshold: {self.SLOW_REQUEST_THRESHOLD}s"
@@ -243,7 +243,7 @@ class UserActivityLoggingMiddleware(MiddlewareMixin):
                         user = request.user.username
 
                     activity_logger.info(
-                        f"👤 USER ACTIVITY | User: {user} | "
+                        f"[USER ACTIVITY] User: {user} | "
                         f"Action: {request.method} {path} | "
                         f"IP: {self._get_client_ip(request)}"
                     )

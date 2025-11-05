@@ -435,7 +435,7 @@ class BTCETH_CMC20_Trader:
             else:
                 order = self.client.order_market_sell(symbol=pair, quantity=quantity)
 
-            trade_logger.info(f"✅ Order executed successfully: {order['orderId']}")
+            trade_logger.info(f"[SUCCESS] Order executed successfully: {order['orderId']}")
             trade_logger.info(f"  Executed quantity: {order['executedQty']} {symbol}")
             trade_logger.info(f"  Quote quantity: {order['cummulativeQuoteQty']} {quote_currency}")
             trade_logger.info(f"  Order details: {order}")
@@ -446,14 +446,14 @@ class BTCETH_CMC20_Trader:
             return True
 
         except BinanceAPIException as e:
-            error_logger.error(f"❌ Binance API error for {side} {symbol}: {e}")
+            error_logger.error(f"[ERROR] Binance API error for {side} {symbol}: {e}")
             error_logger.error(f"  Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
             error_logger.error(traceback.format_exc())
             print(f"❌ Помилка ордеру {symbol}: {e}")
             print(f"   Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
             return False
         except Exception as e:
-            error_logger.error(f"❌ Unknown error in market order {side} {symbol}: {e}")
+            error_logger.error(f"[ERROR] Unknown error in market order {side} {symbol}: {e}")
             error_logger.error(traceback.format_exc())
             print(f"❌ Невідома помилка: {e}")
             traceback.print_exc()
@@ -489,7 +489,7 @@ class BTCETH_CMC20_Trader:
                     confirm = self.client.convert_accept_quote(quoteId=result['quoteId'])
 
                     if confirm and confirm.get('status') == 'SUCCESS':
-                        trade_logger.info(f"✅ Convert executed successfully!")
+                        trade_logger.info(f"[SUCCESS] Convert executed successfully!")
                         trade_logger.info(f"  Quote ID: {result['quoteId']}")
                         trade_logger.info(f"  Converted: {amount} {from_asset}")
                         trade_logger.info(f"  Received: {result.get('toAmount', 'N/A')} {to_asset}")
@@ -522,7 +522,7 @@ class BTCETH_CMC20_Trader:
                 return False
 
         except BinanceAPIException as e:
-            error_logger.error(f"❌ Binance API error converting {from_asset} → {to_asset}: {e}")
+            error_logger.error(f"[ERROR] Binance API error converting {from_asset} -> {to_asset}: {e}")
             error_logger.error(f"  Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
             error_logger.error(f"  Error message: {e.message if hasattr(e, 'message') else str(e)}")
             error_logger.error(traceback.format_exc())
@@ -531,7 +531,7 @@ class BTCETH_CMC20_Trader:
             print(f"   Error message: {e.message if hasattr(e, 'message') else str(e)}")
             return False
         except Exception as e:
-            error_logger.error(f"❌ Unknown error converting {from_asset} → {to_asset}: {e}")
+            error_logger.error(f"[ERROR] Unknown error converting {from_asset} -> {to_asset}: {e}")
             error_logger.error(traceback.format_exc())
             print(f"❌ Невідома помилка конвертації: {e}")
             traceback.print_exc()
@@ -765,8 +765,8 @@ class BTCETH_CMC20_Trader:
         4. Виконує купівлі з перевіркою коштів
         """
         trade_logger.info("=" * 80)
-        trade_logger.info("🚀 PORTFOLIO REBALANCE STARTED")
-        trade_logger.info(f"Mode: {'DRY RUN (test)' if dry_run else '🔴 LIVE TRADING 🔴'}")
+        trade_logger.info("[START] PORTFOLIO REBALANCE STARTED")
+        trade_logger.info(f"Mode: {'DRY RUN (test)' if dry_run else 'LIVE TRADING'}")
         trade_logger.info(f"Timestamp: {datetime.now().isoformat()}")
         trade_logger.info("=" * 80)
 
@@ -964,7 +964,7 @@ class BTCETH_CMC20_Trader:
         print("=" * 80)
 
         trade_logger.info("=" * 80)
-        trade_logger.info("✅ PORTFOLIO REBALANCE COMPLETED")
+        trade_logger.info("[COMPLETED] PORTFOLIO REBALANCE COMPLETED")
         trade_logger.info(f"Final balance {quote_currency}: ${available_balance:.2f}")
         trade_logger.info(f"Results summary: {results}")
         trade_logger.info("=" * 80)
