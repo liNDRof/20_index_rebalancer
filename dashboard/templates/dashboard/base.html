@@ -220,8 +220,6 @@
   <nav class="navbar">
     <div class="container inner">
       <a href="{% url 'dashboard:index' %}" aria-label="Home">💹 {% trans 'Dashboard' %}</a>
-      <a href="{% url 'dashboard:status' %}" aria-label="Status">{% trans 'Status' %}</a>
-      <a href="{% url 'dashboard:manual_rebalance' %}" aria-label="Rebalance">{% trans 'Rebalance' %}</a>
       <div class="spacer"></div>
       {% if request.user.is_authenticated %}
         <a href="{% url 'dashboard:profile' %}" aria-label="Profile">

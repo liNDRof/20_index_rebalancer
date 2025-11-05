@@ -330,13 +330,22 @@
       box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5), 0 0 40px rgba(37, 99, 235, 0.3);
     }
 
-    #stopBtn {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+#stopBtn {
+      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
       color: white;
+      box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4), 0 0 20px rgba(22, 163, 74, 0.2);
+    }
+
+    #stopBtn.active {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
       box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4), 0 0 20px rgba(220, 38, 38, 0.2);
     }
 
     #stopBtn:hover:not(:disabled) {
+      box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5), 0 0 40px rgba(22, 163, 74, 0.3);
+    }
+
+    #stopBtn.active:hover:not(:disabled) {
       box-shadow: 0 8px 25px rgba(239, 68, 68, 0.5), 0 0 40px rgba(220, 38, 38, 0.3);
     }
 
@@ -646,7 +655,7 @@
           </label>
         </div>
         <button id="setNextRebalanceBtn">{% trans 'Set time' %}</button>
-        <button id="stopBtn">⏹ {% trans 'Stop timer' %}</button>
+        <button id="stopBtn">▶️ {% trans 'Start trading' %}</button>
 
         <div class="timer-info" id="timer">{% trans 'Until next rebalance' %}: ...</div>
       </div>
@@ -686,7 +695,6 @@
   <script>
 let remaining = 0;
 let defaultInterval = 3600;
-let timerPaused = false;
 let timerInterval = null;
 
 // 🪙 Оновлення портфеля
@@ -695,8 +703,16 @@ async function fetchStatus(updatePortfolio = false) {
     const res = await fetch('{% url "dashboard:status" %}');
     const data = await res.json();
 
-    if (!timerPaused && data.remaining !== null) {
+    if (typeof data.default_interval === 'number') {
+      defaultInterval = data.default_interval;
+    }
+
+    if (typeof data.remaining === 'number') {
       remaining = data.remaining;
+    }
+
+    if (typeof data.is_running === 'boolean') {
+      updateTimerButtonState(data.is_running);
     }
 
     if (updatePortfolio) {
@@ -770,13 +786,141 @@ function updateTimerDisplay() {
   }
 }
 
+function getCsrfToken() {
+  const name = 'csrftoken=';
+  const decodedCookie = decodeURIComponent(document.cookie);
+  const cookies = decodedCookie.split(';');
+  for (let i = 0; i < cookies.length; i++) {
+    let c = cookies[i].trim();
+    if (c.indexOf(name) === 0) {
+      return c.substring(name.length, c.length);
+    }
+  }
+  return '';
+}
+
+function updateTimerButtonState(isRunning) {
+  const btn = document.getElementById('stopBtn');
+  if (!btn) return;
+
+  if (isRunning) {
+    btn.classList.add('active');
+    btn.textContent = '⏹ {% trans "Stop trading" %}';
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = '▶️ {% trans "Start trading" %}';
+  }
+}
+
+async function toggleTimer() {
+  const btn = document.getElementById('stopBtn');
+  const isRunning = !btn.classList.contains('active');
+
+  const endpoint = isRunning ? '{% url "dashboard:start_trader" %}' : '{% url "dashboard:stop_trader" %}';
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCsrfToken()
+      },
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+
+    if (data.status === 'started' || data.status === 'stopped' || data.status === 'already_running') {
+      if (typeof data.remaining === 'number') {
+        remaining = data.remaining;
+      }
+      if (typeof data.default_interval === 'number') {
+        defaultInterval = data.default_interval;
+      }
+      updateTimerButtonState(isRunning && data.status !== 'already_running');
+      if (isRunning && data.status !== 'already_running') {
+        startTimer();
+      }
+      updateTimerDisplay();
+    } else {
+      alert(data.error || '{% trans "Failed to toggle timer." %}');
+    }
+  } catch (err) {
+    console.error('Failed to toggle timer', err);
+    alert('{% trans "Failed to toggle timer." %}');
+  }
+}
+
+async function updateDefaultInterval() {
+  const d = Number(document.getElementById('defDays').value) || 0;
+  const h = Number(document.getElementById('defHours').value) || 0;
+  const m = Number(document.getElementById('defMinutes').value) || 0;
+  const s = Number(document.getElementById('defSeconds').value) || 0;
+
+  try {
+    const res = await fetch('{% url "dashboard:update_default_interval" %}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken()
+      },
+      body: JSON.stringify({ days: d, hours: h, minutes: m, seconds: s }),
+      credentials: 'same-origin'
+    });
+
+    const data = await res.json();
+
+    if (data.status === 'ok') {
+      defaultInterval = data.default_interval;
+      alert(`{% trans 'New default interval' %}: ${defaultInterval} {% trans 'sec' %}.`);
+    } else {
+      alert(data.error || '{% trans "Failed to update interval." %}');
+    }
+  } catch (err) {
+    console.error('Failed to update interval', err);
+    alert('{% trans "Failed to update interval." %}');
+  }
+}
+
+async function setNextRebalanceTime() {
+  const d = Number(document.getElementById('nextDays').value) || 0;
+  const h = Number(document.getElementById('nextHours').value) || 0;
+  const m = Number(document.getElementById('nextMinutes').value) || 0;
+  const s = Number(document.getElementById('nextSeconds').value) || 0;
+  const totalSeconds = d * 86400 + h * 3600 + m * 60 + s;
+
+  try {
+    const res = await fetch('{% url "dashboard:set_next_rebalance_time" %}', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfToken()
+      },
+      body: JSON.stringify({ days: d, hours: h, minutes: m, seconds: s }),
+      credentials: 'same-origin'
+    });
+    const data = await res.json();
+
+    if (data.status === 'ok') {
+      remaining = data.next_in ?? totalSeconds;
+      updateTimerDisplay();
+      startTimer();
+      alert(`⏱️ {% trans 'Next rebalance in' %} ${remaining} {% trans 'sec' %}.`);
+    } else {
+      alert(data.error || '{% trans "Failed to set next rebalance." %}');
+    }
+  } catch (err) {
+    console.error('Failed to set next rebalance', err);
+    alert('{% trans "Failed to set next rebalance." %}');
+  }
+}
 function startTimer() {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {
-    if (!timerPaused && remaining > 0) {
+    if (remaining > 0) {
       remaining--;
       updateTimerDisplay();
-      if (remaining === 0) onTimerEnd();
+      if (remaining === 0) {
+        onTimerEnd();
+      }
     }
   }, 1000);
 }
@@ -784,7 +928,12 @@ function startTimer() {
 async function onTimerEnd() {
   document.getElementById('timer').textContent = '{% trans "Rebalancing in progress..." %}';
   try {
-    await fetch('{% url "dashboard:manual_rebalance" %}');
+    const res = await fetch('{% url "dashboard:manual_rebalance" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      credentials: 'same-origin'
+    });
+    await res.json();
     await fetchStatus(true);
   } catch (e) {
     console.error('{% trans "Rebalance error:" %}', e);
@@ -794,37 +943,11 @@ async function onTimerEnd() {
 }
 
 // Кнопки
-document.getElementById('stopBtn').onclick = () => {
-  timerPaused = !timerPaused;
-  const btn = document.getElementById('stopBtn');
-  if (timerPaused) {
-    btn.textContent = '{% trans "▶️ Start timer" %}';
-    btn.style.background = "#22c55e";
-  } else {
-    btn.textContent = '{% trans "⏹ Stop timer" %}';
-    btn.style.background = "#ef4444";
-  }
-};
+document.getElementById('stopBtn').onclick = () => toggleTimer();
 
-document.getElementById('saveDefaultIntervalBtn').onclick = () => {
-  const d = Number(document.getElementById('defDays').value) || 0;
-  const h = Number(document.getElementById('defHours').value) || 0;
-  const m = Number(document.getElementById('defMinutes').value) || 0;
-  const s = Number(document.getElementById('defSeconds').value) || 0;
-  defaultInterval = d * 86400 + h * 3600 + m * 60 + s;
-  alert(`{% trans 'New default interval' %}: ${defaultInterval} {% trans 'sec' %}.`);
-};
+document.getElementById('saveDefaultIntervalBtn').onclick = () => updateDefaultInterval();
 
-document.getElementById('setNextRebalanceBtn').onclick = () => {
-  const d = Number(document.getElementById('nextDays').value) || 0;
-  const h = Number(document.getElementById('nextHours').value) || 0;
-  const m = Number(document.getElementById('nextMinutes').value) || 0;
-  const s = Number(document.getElementById('nextSeconds').value) || 0;
-  remaining = d * 86400 + h * 3600 + m * 60 + s;
-  updateTimerDisplay();
-  startTimer();
-  alert(`⏱️ {% trans 'Next rebalance in' %} ${remaining} {% trans 'sec' %}.`);
-};
+document.getElementById('setNextRebalanceBtn').onclick = () => setNextRebalanceTime();
 
 document.getElementById('rebalanceBtn').onclick = async () => {
   const confirmed = confirm('{% trans "Execute rebalance?" %}');
@@ -836,7 +959,11 @@ document.getElementById('rebalanceBtn').onclick = async () => {
   btn.textContent = '{% trans "Rebalancing..." %}';
 
   try {
-    const res = await fetch('{% url "dashboard:manual_rebalance" %}');
+    const res = await fetch('{% url "dashboard:manual_rebalance" %}', {
+      method: 'POST',
+      headers: { 'X-CSRFToken': getCsrfToken() },
+      credentials: 'same-origin'
+    });
     const data = await res.json();
 
     if (data.status === "ok") {

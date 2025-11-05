@@ -1,3 +1,4 @@
+import json
 import traceback
 import threading
 import time
@@ -11,6 +12,7 @@ from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.views.decorators.http import require_POST
 
 from trader.btceth_trader import BTCETH_CMC20_Trader
 from .models import UserProfile, TraderSession, TradeHistory
@@ -23,7 +25,25 @@ trade_logger = logging.getLogger('trades')
 
 # Thread management for each user
 user_trader_threads = {}  # {user_id: thread}
-user_trader_locks = {}    # {user_id: lock}
+
+
+def parse_bool(value, default=False):
+    """Safely parse boolean-like values from various inputs"""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, str):
+        value = value.strip().lower()
+        if value in {'1', 'true', 'yes', 'on'}:
+            return True
+        if value in {'0', 'false', 'no', 'off'}:
+            return False
+        return default
+    try:
+        return bool(int(value))
+    except (TypeError, ValueError):
+        return default
 
 
 def get_or_create_profile(user):
@@ -233,6 +253,7 @@ def stop_user_trader(user):
         # Signal thread to stop
         session = get_or_create_session(user)
         session.is_running = False
+        session.next_run_time = None
         session.save()
 
         # Wait a bit for thread to finish
@@ -242,7 +263,6 @@ def stop_user_trader(user):
 
         # Clean up
         user_trader_threads.pop(user_id, None)
-        user_trader_locks.pop(user_id, None)
 
 
 def user_trader_loop(user_id):
@@ -259,6 +279,8 @@ def user_trader_loop(user_id):
         while session.is_running:
             # Refresh session from DB
             session.refresh_from_db()
+            profile.refresh_from_db()
+            interval = max(60, profile.default_interval)
 
             if not session.is_running:
                 break
@@ -320,6 +342,7 @@ def user_trader_loop(user_id):
 
 
 @login_required
+@require_POST
 def start_trader(request):
     """Start trader for current user"""
     user = request.user
@@ -334,6 +357,8 @@ def start_trader(request):
 
         # Start trader thread
         session.is_running = True
+        profile = get_or_create_profile(user)
+        session.next_run_time = datetime.now() + timedelta(seconds=max(60, profile.default_interval))
         session.save()
 
         thread = threading.Thread(target=user_trader_loop, args=(user.id,), daemon=True)
@@ -341,17 +366,31 @@ def start_trader(request):
 
         user_trader_threads[user.id] = thread
 
-        return JsonResponse({'status': 'started'})
+        remaining = max(0, int((session.next_run_time - datetime.now()).total_seconds())) if session.next_run_time else None
+
+        return JsonResponse({
+            'status': 'started',
+            'remaining': remaining,
+            'default_interval': profile.default_interval
+        })
 
     except Exception as e:
         return JsonResponse({'status': 'error', 'error': str(e)})
 
 
 @login_required
+@require_POST
 def stop_trader(request):
     """Stop trader for current user"""
     stop_user_trader(request.user)
-    return JsonResponse({'status': 'stopped'})
+    session = get_or_create_session(request.user)
+    profile = get_or_create_profile(request.user)
+    return JsonResponse({
+        'status': 'stopped',
+        'remaining': 0,
+        'default_interval': profile.default_interval,
+        'is_running': session.is_running
+    })
 
 
 # ============================================
@@ -362,6 +401,7 @@ def stop_trader(request):
 def get_status(request):
     """Get current status for user"""
     logger.info(f"[{request.user.username}] ========== get_status called ==========")
+    profile = get_or_create_profile(request.user)
     session = get_or_create_session(request.user)
 
     remaining = None
@@ -383,7 +423,10 @@ def get_status(request):
         'remaining': remaining,
         'portfolio': session.last_portfolio,
         'rebalance': session.last_rebalance_result,
-        'dry_run_mode': session.dry_run_mode
+        'dry_run_mode': session.dry_run_mode,
+        'default_interval': profile.default_interval,
+        'next_run_time': session.next_run_time.isoformat() if session.next_run_time else None,
+        'last_run_time': session.last_run_time.isoformat() if session.last_run_time else None,
     }
 
     logger.info(f"[{request.user.username}] Returning response: {response_data}")
@@ -462,6 +505,7 @@ def refresh_portfolio(request):
 
 
 @login_required
+@require_POST
 def manual_rebalance(request):
     """Manual rebalance for current user"""
     trade_logger.info(f"{'='*80}")
@@ -470,6 +514,7 @@ def manual_rebalance(request):
 
     user = request.user
     session = get_or_create_session(user)
+    profile = get_or_create_profile(user)
 
     try:
         # Create trader with user credentials
@@ -499,6 +544,10 @@ def manual_rebalance(request):
         # Save result
         session.last_rebalance_result = rebalance_result if rebalance_result else {"note": "no result"}
         session.last_run_time = datetime.now()
+        if session.is_running:
+            session.next_run_time = datetime.now() + timedelta(seconds=max(60, profile.default_interval))
+        else:
+            session.next_run_time = None
         session.save()
 
         trade_logger.info(f"[{request.user.username}] ✓ Rebalance completed successfully")
@@ -552,19 +601,36 @@ def manual_rebalance(request):
 # ============================================
 
 @login_required
+@require_POST
 def update_default_interval(request):
     """Update default rebalance interval"""
     profile = get_or_create_profile(request.user)
+    session = get_or_create_session(request.user)
 
     try:
-        days = int(request.GET.get("days", 0))
-        hours = int(request.GET.get("hours", 0))
-        minutes = int(request.GET.get("minutes", 0))
-        seconds = int(request.GET.get("seconds", 0))
+        if request.content_type == 'application/json':
+            payload = json.loads(request.body or '{}')
+        else:
+            payload = request.POST
+
+        def to_int(value):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return 0
+
+        days = to_int(payload.get("days", 0))
+        hours = to_int(payload.get("hours", 0))
+        minutes = to_int(payload.get("minutes", 0))
+        seconds = to_int(payload.get("seconds", 0))
 
         total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
         profile.default_interval = max(60, total_seconds)  # Minimum 60 seconds
         profile.save()
+
+        if session.is_running:
+            session.next_run_time = datetime.now() + timedelta(seconds=profile.default_interval)
+            session.save(update_fields=['next_run_time', 'is_running', 'updated_at'])
 
         return JsonResponse({"status": "ok", "default_interval": profile.default_interval})
     except Exception as e:
@@ -572,31 +638,56 @@ def update_default_interval(request):
 
 
 @login_required
+@require_POST
 def set_next_rebalance_time(request):
     """Set next rebalance time"""
     session = get_or_create_session(request.user)
 
     try:
-        days = int(request.GET.get("days", 0))
-        hours = int(request.GET.get("hours", 0))
-        minutes = int(request.GET.get("minutes", 0))
-        seconds = int(request.GET.get("seconds", 0))
+        if request.content_type == 'application/json':
+            payload = json.loads(request.body or '{}')
+        else:
+            payload = request.POST
+
+        def to_int(value):
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return 0
+
+        days = to_int(payload.get("days", 0))
+        hours = to_int(payload.get("hours", 0))
+        minutes = to_int(payload.get("minutes", 0))
+        seconds = to_int(payload.get("seconds", 0))
 
         total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
         session.next_run_time = datetime.now() + timedelta(seconds=total_seconds)
         session.save()
 
-        return JsonResponse({"status": "ok", "next_in": total_seconds})
+        return JsonResponse({
+            "status": "ok",
+            "next_in": max(0, total_seconds),
+            "is_running": session.is_running
+        })
     except Exception as e:
         return JsonResponse({"status": "error", "error": str(e)})
 
 
 @login_required
+@require_POST
 def toggle_dry_run(request):
     """Toggle dry run mode"""
     session = get_or_create_session(request.user)
 
-    mode = request.GET.get('mode', None)
+    if request.content_type == 'application/json':
+        try:
+            payload = json.loads(request.body or '{}')
+        except json.JSONDecodeError:
+            payload = {}
+    else:
+        payload = request.POST
+
+    mode = payload.get('mode', None)
     if mode == 'real':
         session.dry_run_mode = False
     elif mode == 'test':
