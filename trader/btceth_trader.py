@@ -42,6 +42,18 @@ class BTCETH_CMC20_Trader:
 
         debug_logger.info("Creating Binance client...")
         self.client = Client(self.binance_api_key, self.binance_api_secret)
+
+        # Synchronize timestamp with Binance server to avoid timestamp errors
+        try:
+            debug_logger.info("Synchronizing timestamp with Binance server...")
+            server_time = self.client.get_server_time()
+            local_time = int(time.time() * 1000)
+            time_offset = server_time['serverTime'] - local_time
+            self.client.timestamp_offset = time_offset
+            debug_logger.info(f"Timestamp synchronized. Offset: {time_offset}ms")
+        except Exception as e:
+            debug_logger.warning(f"Failed to synchronize timestamp: {e}. Continuing without sync.")
+
         debug_logger.info("Binance client created successfully")
 
         # CoinMarketCap API - use provided or fall back to .env
