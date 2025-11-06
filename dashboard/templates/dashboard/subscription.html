@@ -634,9 +634,12 @@
     <p style="font-size: 18px; margin-bottom: 10px; font-weight: 700; color: #1e293b;">
       <strong>{{ subscription_info.days_remaining }}</strong> {% trans "days remaining" %}
     </p>
-    <p style="color: #64748b; font-weight: 600;">
+    <p style="color: #64748b; font-weight: 600; margin-bottom: 20px;">
       {% trans "Your subscription will automatically renew" %}
     </p>
+    <button class="subscribe-btn" onclick="openCustomerPortal()" style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%);">
+      ⚙️ {% trans "Manage Subscription" %}
+    </button>
   {% else %}
     <div class="status-badge expired">
       ✕ {% trans "No Active Subscription" %}
@@ -695,7 +698,7 @@
       <li>{% trans "Cancel anytime" %}</li>
     </ul>
 
-    <button class="subscribe-btn" onclick="alert('💳 Payment integration coming soon! This is a preview.')">
+    <button class="subscribe-btn" onclick="handleSubscribe()">
       💎 {% trans "Subscribe Now" %}
     </button>
   </div>
@@ -716,4 +719,70 @@
     <strong>{% trans "For now, trial access is available to test all features!" %}</strong>
   </p>
 </div>
+
+<script>
+// Handle Stripe Checkout
+function handleSubscribe() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ {% trans "Processing..." %}';
+
+  fetch('{% url "dashboard:create_checkout" %}', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'ok' && data.checkout_url) {
+      // Redirect to Stripe Checkout
+      window.location.href = data.checkout_url;
+    } else {
+      alert('{% trans "Error creating checkout session. Please try again." %}');
+      btn.disabled = false;
+      btn.innerHTML = '💎 {% trans "Subscribe Now" %}';
+    }
+  })
+  .catch(error => {
+    console.error('Checkout error:', error);
+    alert('{% trans "Unable to start checkout. Please try again later." %}');
+    btn.disabled = false;
+    btn.innerHTML = '💎 {% trans "Subscribe Now" %}';
+  });
+}
+
+// Handle Customer Portal (for managing existing subscription)
+function openCustomerPortal() {
+  const btn = event.target;
+  btn.disabled = true;
+  btn.innerHTML = '⏳ {% trans "Loading..." %}';
+
+  fetch('{% url "dashboard:customer_portal" %}', {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': '{{ csrf_token }}',
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'ok' && data.portal_url) {
+      // Redirect to Stripe Customer Portal
+      window.location.href = data.portal_url;
+    } else {
+      alert('{% trans "Error accessing customer portal. Please try again." %}');
+      btn.disabled = false;
+      btn.innerHTML = '⚙️ {% trans "Manage Subscription" %}';
+    }
+  })
+  .catch(error => {
+    console.error('Portal error:', error);
+    alert('{% trans "Unable to access portal. Please try again later." %}');
+    btn.disabled = false;
+    btn.innerHTML = '⚙️ {% trans "Manage Subscription" %}';
+  });
+}
+</script>
 {% endblock %}

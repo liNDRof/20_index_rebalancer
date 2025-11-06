@@ -10,15 +10,21 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
+from django.conf import settings
+import stripe
 
 from trader.btceth_trader import BTCETH_CMC20_Trader
 from .models import UserProfile, TraderSession, TradeHistory
 from .decorators import subscription_required, trial_or_subscription_required
+
+# Configure Stripe
+stripe.api_key = settings.STRIPE_SECRET_KEY
 
 # Configure logging - use specialized loggers
 logger = logging.getLogger('general')
@@ -769,3 +775,266 @@ def subscription_status_api(request):
         'subscription': subscription_info,
         'has_active': profile.has_active_subscription()
     })
+
+
+# ============================================================================
+# STRIPE PAYMENT INTEGRATION
+# ============================================================================
+
+@login_required
+@require_POST
+def create_checkout_session(request):
+    """Create Stripe Checkout Session for subscription"""
+    profile = get_or_create_profile(request.user)
+
+    try:
+        # Create or get Stripe customer
+        if not profile.payment_customer_id:
+            customer = stripe.Customer.create(
+                email=request.user.email,
+                metadata={
+                    'user_id': request.user.id,
+                    'username': request.user.username
+                }
+            )
+            profile.payment_customer_id = customer.id
+            profile.payment_provider = 'stripe'
+            profile.save()
+
+        # Create Checkout Session
+        checkout_session = stripe.checkout.Session.create(
+            customer=profile.payment_customer_id,
+            payment_method_types=['card'],
+            line_items=[{
+                'price': settings.STRIPE_PRICE_ID,
+                'quantity': 1,
+            }],
+            mode='subscription',
+            success_url=settings.DOMAIN + '/dashboard/subscription/success/?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url=settings.DOMAIN + '/dashboard/subscription/cancel/',
+            metadata={
+                'user_id': request.user.id,
+                'username': request.user.username
+            }
+        )
+
+        logger.info(f"[{request.user.username}] Created Stripe Checkout Session: {checkout_session.id}")
+
+        return JsonResponse({
+            'status': 'ok',
+            'checkout_url': checkout_session.url,
+            'session_id': checkout_session.id
+        })
+
+    except stripe.error.StripeError as e:
+        logger.error(f"[{request.user.username}] Stripe error: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        }, status=400)
+    except Exception as e:
+        logger.error(f"[{request.user.username}] Error creating checkout session: {str(e)}")
+        logger.error(traceback.format_exc())
+        return JsonResponse({
+            'status': 'error',
+            'error': 'Unable to create checkout session. Please try again.'
+        }, status=500)
+
+
+@login_required
+def subscription_success(request):
+    """Handle successful subscription payment"""
+    session_id = request.GET.get('session_id')
+
+    if session_id:
+        try:
+            # Retrieve the session to verify payment
+            session = stripe.checkout.Session.retrieve(session_id)
+
+            if session.payment_status == 'paid':
+                messages.success(request, _('Payment successful! Your subscription is now active.'))
+                logger.info(f"[{request.user.username}] Subscription payment successful: {session_id}")
+            else:
+                messages.warning(request, _('Payment is being processed. Your subscription will activate shortly.'))
+
+        except stripe.error.StripeError as e:
+            logger.error(f"[{request.user.username}] Error retrieving session: {str(e)}")
+            messages.warning(request, _('Payment received but verification pending.'))
+
+    return redirect('dashboard:subscription')
+
+
+@login_required
+def subscription_cancel(request):
+    """Handle cancelled subscription payment"""
+    messages.info(request, _('Subscription payment was cancelled. You can try again anytime.'))
+    logger.info(f"[{request.user.username}] User cancelled subscription payment")
+    return redirect('dashboard:subscription')
+
+
+@login_required
+@require_POST
+def create_customer_portal_session(request):
+    """Create Stripe Customer Portal session for subscription management"""
+    profile = get_or_create_profile(request.user)
+
+    if not profile.payment_customer_id:
+        return JsonResponse({
+            'status': 'error',
+            'error': 'No active subscription found.'
+        }, status=400)
+
+    try:
+        portal_session = stripe.billing_portal.Session.create(
+            customer=profile.payment_customer_id,
+            return_url=settings.DOMAIN + '/dashboard/subscription/',
+        )
+
+        logger.info(f"[{request.user.username}] Created Customer Portal Session")
+
+        return JsonResponse({
+            'status': 'ok',
+            'portal_url': portal_session.url
+        })
+
+    except stripe.error.StripeError as e:
+        logger.error(f"[{request.user.username}] Stripe error: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'error': str(e)
+        }, status=400)
+    except Exception as e:
+        logger.error(f"[{request.user.username}] Error creating portal session: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'error': 'Unable to access customer portal. Please try again.'
+        }, status=500)
+
+
+@csrf_exempt
+@require_POST
+def stripe_webhook(request):
+    """Handle Stripe webhook events"""
+    payload = request.body
+    sig_header = request.META.get('HTTP_STRIPE_SIGNATURE')
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        logger.error(f"Webhook error: Invalid payload - {str(e)}")
+        return HttpResponse(status=400)
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"Webhook error: Invalid signature - {str(e)}")
+        return HttpResponse(status=400)
+
+    # Handle the event
+    event_type = event['type']
+    data_object = event['data']['object']
+
+    logger.info(f"Received Stripe webhook: {event_type}")
+
+    # Handle subscription created
+    if event_type == 'customer.subscription.created':
+        handle_subscription_created(data_object)
+
+    # Handle subscription updated
+    elif event_type == 'customer.subscription.updated':
+        handle_subscription_updated(data_object)
+
+    # Handle subscription deleted
+    elif event_type == 'customer.subscription.deleted':
+        handle_subscription_deleted(data_object)
+
+    # Handle successful payment
+    elif event_type == 'invoice.payment_succeeded':
+        handle_payment_succeeded(data_object)
+
+    # Handle failed payment
+    elif event_type == 'invoice.payment_failed':
+        handle_payment_failed(data_object)
+
+    return HttpResponse(status=200)
+
+
+def handle_subscription_created(subscription):
+    """Handle new subscription creation"""
+    customer_id = subscription.get('customer')
+    subscription_id = subscription.get('id')
+
+    try:
+        profile = UserProfile.objects.get(payment_customer_id=customer_id)
+        profile.activate_subscription(
+            subscription_id=subscription_id,
+            provider='stripe'
+        )
+        logger.info(f"[{profile.user.username}] Subscription created: {subscription_id}")
+    except UserProfile.DoesNotExist:
+        logger.error(f"No user found for customer: {customer_id}")
+
+
+def handle_subscription_updated(subscription):
+    """Handle subscription updates"""
+    customer_id = subscription.get('customer')
+    subscription_id = subscription.get('id')
+    status = subscription.get('status')
+
+    try:
+        profile = UserProfile.objects.get(payment_customer_id=customer_id)
+
+        if status == 'active':
+            profile.activate_subscription(
+                subscription_id=subscription_id,
+                provider='stripe'
+            )
+            logger.info(f"[{profile.user.username}] Subscription activated: {subscription_id}")
+        elif status in ['canceled', 'unpaid', 'past_due']:
+            profile.cancel_subscription()
+            logger.info(f"[{profile.user.username}] Subscription cancelled/expired: {subscription_id}")
+
+    except UserProfile.DoesNotExist:
+        logger.error(f"No user found for customer: {customer_id}")
+
+
+def handle_subscription_deleted(subscription):
+    """Handle subscription deletion"""
+    customer_id = subscription.get('customer')
+    subscription_id = subscription.get('id')
+
+    try:
+        profile = UserProfile.objects.get(payment_customer_id=customer_id)
+        profile.cancel_subscription()
+        logger.info(f"[{profile.user.username}] Subscription deleted: {subscription_id}")
+    except UserProfile.DoesNotExist:
+        logger.error(f"No user found for customer: {customer_id}")
+
+
+def handle_payment_succeeded(invoice):
+    """Handle successful payment"""
+    customer_id = invoice.get('customer')
+    subscription_id = invoice.get('subscription')
+
+    try:
+        profile = UserProfile.objects.get(payment_customer_id=customer_id)
+        # Ensure subscription is active after successful payment
+        if subscription_id:
+            profile.activate_subscription(
+                subscription_id=subscription_id,
+                provider='stripe'
+            )
+        logger.info(f"[{profile.user.username}] Payment succeeded for subscription: {subscription_id}")
+    except UserProfile.DoesNotExist:
+        logger.error(f"No user found for customer: {customer_id}")
+
+
+def handle_payment_failed(invoice):
+    """Handle failed payment"""
+    customer_id = invoice.get('customer')
+
+    try:
+        profile = UserProfile.objects.get(payment_customer_id=customer_id)
+        logger.warning(f"[{profile.user.username}] Payment failed - subscription may be cancelled")
+        # Optionally send notification to user
+    except UserProfile.DoesNotExist:
+        logger.error(f"No user found for customer: {customer_id}")

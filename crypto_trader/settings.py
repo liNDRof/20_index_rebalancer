@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -149,3 +150,12 @@ LOGOUT_REDIRECT_URL = '/login/'
 # Initialize custom logging system
 from crypto_trader.logging_config import setup_logging
 setup_logging()
+
+# Stripe Configuration
+STRIPE_PUBLISHABLE_KEY = config('STRIPE_PUBLISHABLE_KEY', default='')
+STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
+STRIPE_PRICE_ID = config('STRIPE_PRICE_ID', default='')  # Monthly subscription price ID
+
+# Your domain for payment redirects
+DOMAIN = config('DOMAIN', default='http://localhost:8000')

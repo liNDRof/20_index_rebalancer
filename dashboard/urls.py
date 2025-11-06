@@ -13,8 +13,16 @@ urlpatterns = [
     # Subscription Management
     path('subscription/', views.subscription_view, name='subscription'),
     path('subscription/start-trial/', views.start_trial, name='start_trial'),
+    path('subscription/activate-trial/', views.start_trial, name='activate_trial'),  # Alias for template
     path('subscription/cancel/', views.cancel_subscription, name='cancel_subscription'),
     path('subscription/status/', views.subscription_status_api, name='subscription_status_api'),
+
+    # Stripe Payment Integration
+    path('subscription/checkout/', views.create_checkout_session, name='create_checkout'),
+    path('subscription/success/', views.subscription_success, name='subscription_success'),
+    path('subscription/cancel-payment/', views.subscription_cancel, name='subscription_cancel_payment'),
+    path('subscription/customer-portal/', views.create_customer_portal_session, name='customer_portal'),
+    path('stripe/webhook/', views.stripe_webhook, name='stripe_webhook'),
 
     # Trading Operations
     path('start/', views.start_trader, name='start_trader'),
