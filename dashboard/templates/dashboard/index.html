@@ -594,6 +594,20 @@
       margin: 0;
     }
 
+    /* Table Container for overflow handling */
+    #portfolio {
+      display: block;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #portfolio thead,
+    #portfolio tbody {
+      display: table;
+      width: 100%;
+      table-layout: auto;
+    }
+
     /* Table Styling - Premium Crypto Theme */
     table {
       width: 100%;
@@ -607,6 +621,7 @@
         0 0 50px rgba(59, 130, 246, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.1);
       border: 1px solid rgba(59, 130, 246, 0.2);
+      table-layout: auto;
     }
 
     th {
@@ -624,6 +639,24 @@
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
       position: relative;
       overflow: hidden;
+      white-space: nowrap;
+    }
+
+    th:nth-child(1) {
+      width: 20%;
+      min-width: 100px;
+    }
+
+    th:nth-child(2) {
+      width: 45%;
+      min-width: 200px;
+    }
+
+    th:nth-child(3) {
+      width: 35%;
+      min-width: 150px;
+      text-align: right;
+      padding-right: 32px;
     }
 
     th::before {
@@ -650,6 +683,25 @@
       background: rgba(255, 255, 255, 0.9);
       font-weight: 600;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      word-wrap: break-word;
+    }
+
+    td:nth-child(1) {
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    td:nth-child(2) {
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+
+    td:nth-child(3) {
+      text-align: right;
+      padding-right: 32px;
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 16px;
     }
 
     tr:last-child td {
@@ -732,6 +784,12 @@
       border-image-slice: 1;
       font-weight: 800;
       background: rgba(255, 255, 255, 0.95);
+    }
+
+    table tbody tr:last-child td:nth-child(3) {
+      padding-right: 32px;
+      text-align: right;
+      font-size: 20px;
     }
 
     table tbody tr:last-child:hover td {
@@ -882,7 +940,28 @@
       }
 
       th, td {
-        padding: 12px;
+        padding: 12px 16px;
+      }
+
+      th:nth-child(1) {
+        width: 15%;
+        min-width: 60px;
+      }
+
+      th:nth-child(2) {
+        width: 50%;
+        min-width: 150px;
+      }
+
+      th:nth-child(3) {
+        width: 35%;
+        min-width: 100px;
+      }
+
+      td:nth-child(3),
+      th:nth-child(3),
+      table tbody tr:last-child td:nth-child(3) {
+        padding-right: 16px;
       }
     }
   </style>
