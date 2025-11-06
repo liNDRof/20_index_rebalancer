@@ -875,6 +875,79 @@
       animation: loading 1.5s ease-in-out infinite;
     }
 
+    /* Subscription Banner */
+    .subscription-banner {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+      backdrop-filter: blur(15px);
+      border-radius: 16px;
+      padding: 20px 28px;
+      border: 2px solid rgba(59, 130, 246, 0.3);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .subscription-banner.trial {
+      border-color: rgba(59, 130, 246, 0.5);
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(37, 99, 235, 0.2) 100%);
+    }
+
+    .subscription-banner.active {
+      border-color: rgba(34, 197, 94, 0.5);
+      background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(22, 163, 74, 0.2) 100%);
+    }
+
+    .subscription-banner.expired {
+      border-color: rgba(239, 68, 68, 0.5);
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);
+    }
+
+    .subscription-banner-content {
+      flex: 1;
+      min-width: 200px;
+    }
+
+    .subscription-banner-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 5px;
+      color: #e0e7ff;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .subscription-banner-message {
+      font-size: 14px;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+
+    .subscription-banner-action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+      color: white;
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+      border: none;
+      cursor: pointer;
+    }
+
+    .subscription-banner-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(59, 130, 246, 0.6);
+    }
+
     /* Responsive Design */
     @media (max-width: 768px) {
       .dashboard-title h1 {
@@ -970,6 +1043,9 @@
     <div class="dashboard-title">
       <h1>💹 {% trans 'Crypto Trader Dashboard' %}</h1>
     </div>
+
+    <!-- Subscription Status Banner -->
+    <div id="subscription-banner" style="margin-bottom: 20px;"></div>
 
     {% if needs_setup %}
     <div class="alert-box alert-warning">
@@ -1392,8 +1468,73 @@ document.getElementById('refreshBtn').onclick = async () => {
 // Автооновлення кожні 10 секунд
 setInterval(() => fetchStatus(true), 10000);
 
+// Fetch and display subscription status
+const fetchSubscriptionStatus = async () => {
+  try {
+    const res = await fetch('{% url "dashboard:subscription_status_api" %}');
+    const data = await res.json();
+
+    if (data.status === "ok" && data.subscription) {
+      const sub = data.subscription;
+      const banner = document.getElementById('subscription-banner');
+
+      if (!sub.is_active) {
+        // No active subscription - show upgrade banner
+        banner.innerHTML = `
+          <div class="subscription-banner expired">
+            <div class="subscription-banner-content">
+              <div class="subscription-banner-title">❌ No Active Subscription</div>
+              <div class="subscription-banner-message">
+                Subscribe for $10/month to unlock automated rebalancing features
+              </div>
+            </div>
+            <a href="{% url 'dashboard:subscription' %}" class="subscription-banner-action">
+              💎 Subscribe Now
+            </a>
+          </div>
+        `;
+      } else if (sub.status === 'trial') {
+        // Active trial
+        banner.innerHTML = `
+          <div class="subscription-banner trial">
+            <div class="subscription-banner-content">
+              <div class="subscription-banner-title">⏰ Free Trial Active</div>
+              <div class="subscription-banner-message">
+                ${sub.days_remaining} days remaining - Upgrade to continue after trial
+              </div>
+            </div>
+            <a href="{% url 'dashboard:subscription' %}" class="subscription-banner-action">
+              💎 Upgrade Now
+            </a>
+          </div>
+        `;
+      } else if (sub.status === 'active') {
+        // Active subscription
+        banner.innerHTML = `
+          <div class="subscription-banner active">
+            <div class="subscription-banner-content">
+              <div class="subscription-banner-title">✓ Premium Active</div>
+              <div class="subscription-banner-message">
+                ${sub.days_remaining} days remaining - All features unlocked
+              </div>
+            </div>
+            <a href="{% url 'dashboard:subscription' %}" class="subscription-banner-action">
+              ⚙️ Manage
+            </a>
+          </div>
+        `;
+      }
+    }
+  } catch (err) {
+    console.error("Error fetching subscription status:", err);
+  }
+};
+
 // Ініціалізація
 window.onload = async () => {
+  // Fetch subscription status
+  await fetchSubscriptionStatus();
+
   // First, try to fetch fresh portfolio from Binance
   try {
     const refreshRes = await fetch('{% url "dashboard:refresh_portfolio" %}');

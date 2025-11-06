@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import timedelta
 from cryptography.fernet import Fernet
 
 
@@ -18,6 +20,30 @@ class UserProfile(models.Model):
     # Trader settings
     default_interval = models.IntegerField(default=3600, help_text="Default rebalance interval in seconds")
     auto_rebalance = models.BooleanField(default=False, help_text="Enable automatic rebalancing")
+
+    # Subscription Management
+    subscription_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('free', 'Free Trial'),
+            ('active', 'Active Subscription'),
+            ('expired', 'Expired'),
+            ('cancelled', 'Cancelled'),
+        ],
+        default='free',
+        help_text="Current subscription status"
+    )
+    subscription_start_date = models.DateTimeField(null=True, blank=True, help_text="When subscription started")
+    subscription_end_date = models.DateTimeField(null=True, blank=True, help_text="When subscription expires")
+
+    # Payment tracking (for future payment integration)
+    payment_provider = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., stripe, paypal")
+    payment_customer_id = models.CharField(max_length=255, blank=True, null=True, help_text="Customer ID from payment provider")
+    payment_subscription_id = models.CharField(max_length=255, blank=True, null=True, help_text="Subscription ID from payment provider")
+
+    # Free trial
+    trial_used = models.BooleanField(default=False, help_text="Has user used their free trial?")
+    trial_end_date = models.DateTimeField(null=True, blank=True, help_text="When trial expires")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -64,6 +90,92 @@ class UserProfile(models.Model):
     def has_binance_credentials(self):
         """Check if user has configured Binance credentials"""
         return bool(self.binance_api_key_encrypted and self.binance_api_secret_encrypted)
+
+    # Subscription Management Methods
+    def has_active_subscription(self):
+        """Check if user has an active subscription or valid trial"""
+        if self.subscription_status == 'active':
+            # Check if subscription hasn't expired
+            if self.subscription_end_date and self.subscription_end_date > timezone.now():
+                return True
+        elif self.subscription_status == 'free':
+            # Check if trial hasn't expired
+            if self.trial_end_date and self.trial_end_date > timezone.now():
+                return True
+        return False
+
+    def get_subscription_days_remaining(self):
+        """Get number of days remaining in subscription/trial"""
+        if self.subscription_status == 'active' and self.subscription_end_date:
+            delta = self.subscription_end_date - timezone.now()
+            return max(0, delta.days)
+        elif self.subscription_status == 'free' and self.trial_end_date:
+            delta = self.trial_end_date - timezone.now()
+            return max(0, delta.days)
+        return 0
+
+    def start_free_trial(self, trial_days=7):
+        """Start free trial period"""
+        if self.trial_used:
+            return False
+
+        self.subscription_status = 'free'
+        self.trial_used = True
+        self.trial_end_date = timezone.now() + timedelta(days=trial_days)
+        self.save()
+        return True
+
+    def activate_subscription(self, duration_days=30):
+        """Activate paid subscription (called after payment)"""
+        now = timezone.now()
+
+        # If already has active subscription, extend it
+        if self.subscription_status == 'active' and self.subscription_end_date and self.subscription_end_date > now:
+            self.subscription_end_date += timedelta(days=duration_days)
+        else:
+            # New subscription
+            self.subscription_start_date = now
+            self.subscription_end_date = now + timedelta(days=duration_days)
+
+        self.subscription_status = 'active'
+        self.save()
+        return True
+
+    def cancel_subscription(self):
+        """Cancel subscription (will remain active until end date)"""
+        self.subscription_status = 'cancelled'
+        self.save()
+
+    def expire_subscription(self):
+        """Mark subscription as expired"""
+        self.subscription_status = 'expired'
+        self.save()
+
+    def get_subscription_status_display_info(self):
+        """Get human-readable subscription status info"""
+        if self.has_active_subscription():
+            days_left = self.get_subscription_days_remaining()
+            if self.subscription_status == 'free':
+                return {
+                    'status': 'trial',
+                    'message': f'Free trial - {days_left} days remaining',
+                    'days_remaining': days_left,
+                    'is_active': True
+                }
+            else:
+                return {
+                    'status': 'active',
+                    'message': f'Active subscription - {days_left} days remaining',
+                    'days_remaining': days_left,
+                    'is_active': True
+                }
+        else:
+            return {
+                'status': self.subscription_status,
+                'message': 'No active subscription',
+                'days_remaining': 0,
+                'is_active': False
+            }
 
 
 class TraderSession(models.Model):

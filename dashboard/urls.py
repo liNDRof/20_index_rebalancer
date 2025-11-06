@@ -9,6 +9,14 @@ urlpatterns = [
     path('logout/', views.logout_view, name='logout'),
     path('register/', views.register_view, name='register'),
     path('profile/', views.profile_view, name='profile'),
+
+    # Subscription Management
+    path('subscription/', views.subscription_view, name='subscription'),
+    path('subscription/start-trial/', views.start_trial, name='start_trial'),
+    path('subscription/cancel/', views.cancel_subscription, name='cancel_subscription'),
+    path('subscription/status/', views.subscription_status_api, name='subscription_status_api'),
+
+    # Trading Operations
     path('start/', views.start_trader, name='start_trader'),
     path('stop/', views.stop_trader, name='stop_trader'),
     path('status/', views.get_status, name='status'),

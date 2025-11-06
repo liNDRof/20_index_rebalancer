@@ -8,8 +8,25 @@ class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
     verbose_name_plural = 'Profile'
-    fields = ('binance_api_key_encrypted', 'binance_api_secret_encrypted', 'cmc_api_key',
-              'default_interval', 'auto_rebalance', 'created_at', 'updated_at')
+    fieldsets = (
+        ('Subscription', {
+            'fields': ('subscription_status', 'subscription_start_date', 'subscription_end_date',
+                      'trial_used', 'trial_end_date')
+        }),
+        ('Payment Integration (Future)', {
+            'fields': ('payment_provider', 'payment_customer_id', 'payment_subscription_id'),
+            'classes': ('collapse',)
+        }),
+        ('Binance Credentials', {
+            'fields': ('binance_api_key_encrypted', 'binance_api_secret_encrypted')
+        }),
+        ('CoinMarketCap', {
+            'fields': ('cmc_api_key',)
+        }),
+        ('Settings', {
+            'fields': ('default_interval', 'auto_rebalance', 'created_at', 'updated_at')
+        }),
+    )
     readonly_fields = ('created_at', 'updated_at')
 
 

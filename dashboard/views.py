@@ -9,6 +9,7 @@ from django.utils.translation import gettext as _
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.contrib import messages
 from django.http import JsonResponse
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -17,6 +18,7 @@ from django.utils import timezone
 
 from trader.btceth_trader import BTCETH_CMC20_Trader
 from .models import UserProfile, TraderSession, TradeHistory
+from .decorators import subscription_required, trial_or_subscription_required
 
 # Configure logging - use specialized loggers
 logger = logging.getLogger('general')
@@ -343,9 +345,10 @@ def user_trader_loop(user_id):
 
 
 @login_required
+@trial_or_subscription_required
 @require_POST
 def start_trader(request):
-    """Start trader for current user"""
+    """Start trader for current user - requires active subscription"""
     user = request.user
     session = get_or_create_session(user)
 
@@ -506,9 +509,10 @@ def refresh_portfolio(request):
 
 
 @login_required
+@trial_or_subscription_required
 @require_POST
 def manual_rebalance(request):
-    """Manual rebalance for current user"""
+    """Manual rebalance for current user - requires active subscription"""
     trade_logger.info(f"{'='*80}")
     trade_logger.info(f"[{request.user.username}] MANUAL REBALANCE STARTED")
     trade_logger.info(f"{'='*80}")
@@ -639,9 +643,10 @@ def update_default_interval(request):
 
 
 @login_required
+@trial_or_subscription_required
 @require_POST
 def set_next_rebalance_time(request):
-    """Set next rebalance time"""
+    """Set next rebalance time - requires active subscription"""
     session = get_or_create_session(request.user)
 
     try:
@@ -702,4 +707,65 @@ def toggle_dry_run(request):
         'status': 'ok',
         'dry_run_mode': session.dry_run_mode,
         'message': _('Test mode') if session.dry_run_mode else _('Real trading mode')
+    })
+
+
+# ============================================================================
+# SUBSCRIPTION MANAGEMENT VIEWS
+# ============================================================================
+
+@login_required
+def subscription_view(request):
+    """Display subscription management page"""
+    profile = get_or_create_profile(request.user)
+    subscription_info = profile.get_subscription_status_display_info()
+
+    return render(request, 'dashboard/subscription.html', {
+        'profile': profile,
+        'subscription_info': subscription_info
+    })
+
+
+@login_required
+@require_POST
+def start_trial(request):
+    """Start free trial for user"""
+    profile = get_or_create_profile(request.user)
+
+    if profile.trial_used:
+        messages.error(request, _('You have already used your free trial.'))
+        return redirect('subscription')
+
+    if profile.start_free_trial(trial_days=7):
+        messages.success(request, _('Free trial activated! You now have 7 days of full access.'))
+        logger.info(f"[{request.user.username}] Started free trial")
+    else:
+        messages.error(request, _('Unable to start trial. Please contact support.'))
+
+    return redirect('index')
+
+
+@login_required
+@require_POST
+def cancel_subscription(request):
+    """Cancel user subscription (placeholder for payment integration)"""
+    profile = get_or_create_profile(request.user)
+    profile.cancel_subscription()
+
+    messages.success(request, _('Subscription cancelled. You will retain access until the end of your billing period.'))
+    logger.info(f"[{request.user.username}] Cancelled subscription")
+
+    return redirect('subscription')
+
+
+@login_required
+def subscription_status_api(request):
+    """API endpoint to get subscription status"""
+    profile = get_or_create_profile(request.user)
+    subscription_info = profile.get_subscription_status_display_info()
+
+    return JsonResponse({
+        'status': 'ok',
+        'subscription': subscription_info,
+        'has_active': profile.has_active_subscription()
     })
