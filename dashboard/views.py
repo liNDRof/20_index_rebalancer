@@ -630,7 +630,7 @@ def update_default_interval(request):
 
         if session.is_running:
             session.next_run_time = datetime.now() + timedelta(seconds=profile.default_interval)
-            session.save(update_fields=['next_run_time', 'is_running', 'updated_at'])
+            session.save(update_fields=['next_run_time'])
 
         return JsonResponse({"status": "ok", "default_interval": profile.default_interval})
     except Exception as e:

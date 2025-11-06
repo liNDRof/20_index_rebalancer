@@ -835,8 +835,10 @@ async function toggleTimer() {
       if (typeof data.default_interval === 'number') {
         defaultInterval = data.default_interval;
       }
-      updateTimerButtonState(isRunning && data.status !== 'already_running');
-      if (isRunning && data.status !== 'already_running') {
+      // Update button state: if we tried to start and it's either started or already running, show as active
+      const actuallyRunning = isRunning || data.status === 'already_running';
+      updateTimerButtonState(actuallyRunning);
+      if (actuallyRunning) {
         startTimer();
       }
       updateTimerDisplay();
