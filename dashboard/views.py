@@ -13,6 +13,7 @@ from django.http import JsonResponse
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_POST
+from django.utils import timezone
 
 from trader.btceth_trader import BTCETH_CMC20_Trader
 from .models import UserProfile, TraderSession, TradeHistory
@@ -298,8 +299,8 @@ def user_trader_loop(user_id):
 
                 # Save result
                 session.last_rebalance_result = rebalance_result if rebalance_result else {"note": "no result"}
-                session.last_run_time = datetime.now()
-                session.next_run_time = datetime.now() + timedelta(seconds=interval)
+                session.last_run_time = timezone.now()
+                session.next_run_time = timezone.now() + timedelta(seconds=interval)
                 session.save()
 
                 # Save to trade history
@@ -358,7 +359,7 @@ def start_trader(request):
         # Start trader thread
         session.is_running = True
         profile = get_or_create_profile(user)
-        session.next_run_time = datetime.now() + timedelta(seconds=max(60, profile.default_interval))
+        session.next_run_time = timezone.now() + timedelta(seconds=max(60, profile.default_interval))
         session.save()
 
         thread = threading.Thread(target=user_trader_loop, args=(user.id,), daemon=True)
@@ -366,7 +367,7 @@ def start_trader(request):
 
         user_trader_threads[user.id] = thread
 
-        remaining = max(0, int((session.next_run_time - datetime.now()).total_seconds())) if session.next_run_time else None
+        remaining = max(0, int((session.next_run_time - timezone.now()).total_seconds())) if session.next_run_time else None
 
         return JsonResponse({
             'status': 'started',
@@ -406,7 +407,7 @@ def get_status(request):
 
     remaining = None
     if session.next_run_time:
-        remaining = max(0, int((session.next_run_time - datetime.now()).total_seconds()))
+        remaining = max(0, int((session.next_run_time - timezone.now()).total_seconds()))
         logger.info(f"[{request.user.username}] Next run time: {session.next_run_time}, remaining: {remaining}s")
 
     logger.info(f"[{request.user.username}] Session data:")
@@ -543,9 +544,9 @@ def manual_rebalance(request):
 
         # Save result
         session.last_rebalance_result = rebalance_result if rebalance_result else {"note": "no result"}
-        session.last_run_time = datetime.now()
+        session.last_run_time = timezone.now()
         if session.is_running:
-            session.next_run_time = datetime.now() + timedelta(seconds=max(60, profile.default_interval))
+            session.next_run_time = timezone.now() + timedelta(seconds=max(60, profile.default_interval))
         else:
             session.next_run_time = None
         session.save()
@@ -629,7 +630,7 @@ def update_default_interval(request):
         profile.save()
 
         if session.is_running:
-            session.next_run_time = datetime.now() + timedelta(seconds=profile.default_interval)
+            session.next_run_time = timezone.now() + timedelta(seconds=profile.default_interval)
             session.save(update_fields=['next_run_time'])
 
         return JsonResponse({"status": "ok", "default_interval": profile.default_interval})
@@ -661,7 +662,7 @@ def set_next_rebalance_time(request):
         seconds = to_int(payload.get("seconds", 0))
 
         total_seconds = days * 86400 + hours * 3600 + minutes * 60 + seconds
-        session.next_run_time = datetime.now() + timedelta(seconds=total_seconds)
+        session.next_run_time = timezone.now() + timedelta(seconds=total_seconds)
         session.save()
 
         return JsonResponse({
