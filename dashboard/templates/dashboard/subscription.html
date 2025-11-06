@@ -3,401 +3,717 @@
 
 {% block title %}{% trans "Subscription" %}{% endblock %}
 
-{% block extra_css %}
-  <style>
-    /* Subscription Page Styling - Crypto Theme */
-    .subscription-container {
-      max-width: 1200px;
-      margin: 40px auto;
-      padding: 0 20px;
-    }
+{% block extra_head %}
+<style>
+  /* Subscription Page - Dark Crypto Theme Matching Dashboard */
 
-    .subscription-hero {
-      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
-      border-radius: 24px;
-      padding: 60px 40px;
-      text-align: center;
-      color: white;
-      margin-bottom: 40px;
-      box-shadow: 0 25px 70px rgba(0, 0, 0, 0.4);
-      position: relative;
-      overflow: hidden;
-    }
+  .subscription-hero {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 60px 40px;
+    margin-bottom: 40px;
+    box-shadow:
+      0 25px 70px rgba(0, 0, 0, 0.35),
+      0 0 60px rgba(59, 130, 246, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    text-align: center;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
 
-    .subscription-hero::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-      animation: shimmer 3s infinite;
-    }
+  .subscription-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
+    animation: heroRotate 15s linear infinite;
+  }
 
-    @keyframes shimmer {
-      0% { left: -100%; }
-      100% { left: 100%; }
-    }
+  @keyframes heroRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
 
+  .subscription-hero::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.12), transparent);
+    animation: heroShimmer 4s infinite;
+  }
+
+  @keyframes heroShimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .subscription-hero h1 {
+    font-size: 48px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 20px 0;
+    position: relative;
+    z-index: 1;
+    text-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+    animation: titleGlow 3s ease-in-out infinite;
+  }
+
+  @keyframes titleGlow {
+    0%, 100% { filter: brightness(1); }
+    50% { filter: brightness(1.3); }
+  }
+
+  .subscription-hero p {
+    font-size: 20px;
+    font-weight: 600;
+    color: #334155;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Status Card */
+  .subscription-status {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    backdrop-filter: blur(25px) saturate(180%);
+    border-radius: 24px;
+    box-shadow:
+      0 25px 70px rgba(0, 0, 0, 0.35),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9),
+      0 0 60px rgba(59, 130, 246, 0.15);
+    padding: 36px;
+    margin-bottom: 40px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid rgba(59, 130, 246, 0.25);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .subscription-status::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.08), transparent);
+    animation: statusShimmer 4s infinite;
+  }
+
+  @keyframes statusShimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .subscription-status::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 24px;
+    padding: 2px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(139, 92, 246, 0.6), rgba(251, 146, 60, 0.4));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .subscription-status:hover {
+    transform: translateY(-5px) scale(1.01);
+    box-shadow:
+      0 35px 90px rgba(0, 0, 0, 0.45),
+      0 0 70px rgba(59, 130, 246, 0.3),
+      inset 0 1px 1px rgba(255, 255, 255, 1);
+    border-color: rgba(139, 92, 246, 0.4);
+  }
+
+  .subscription-status:hover::after {
+    opacity: 1;
+  }
+
+  .subscription-status h2 {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #1e293b 0%, #3b82f6 50%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 24px 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .subscription-status p {
+    color: #334155;
+    font-size: 16px;
+    line-height: 1.8;
+    font-weight: 500;
+    position: relative;
+    z-index: 1;
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 24px;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 1;
+    animation: badgePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes badgePulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+  }
+
+  .status-badge.active {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.5), 0 0 40px rgba(34, 197, 94, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .status-badge.trial {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5), 0 0 40px rgba(59, 130, 246, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  .status-badge.expired {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    box-shadow: 0 8px 25px rgba(239, 68, 68, 0.5), 0 0 40px rgba(239, 68, 68, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Pricing Grid */
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+    margin-bottom: 40px;
+  }
+
+  /* Pricing Cards */
+  .pricing-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    backdrop-filter: blur(25px) saturate(180%);
+    border-radius: 24px;
+    box-shadow:
+      0 25px 70px rgba(0, 0, 0, 0.35),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9),
+      0 0 60px rgba(59, 130, 246, 0.15);
+    padding: 40px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid rgba(59, 130, 246, 0.25);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pricing-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.08), transparent);
+    animation: cardShimmer 4s infinite;
+  }
+
+  @keyframes cardShimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .pricing-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 24px;
+    padding: 2px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.6), rgba(139, 92, 246, 0.6), rgba(251, 146, 60, 0.4));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+  }
+
+  .pricing-card:hover {
+    transform: translateY(-10px) scale(1.02);
+    box-shadow:
+      0 35px 90px rgba(0, 0, 0, 0.45),
+      0 0 70px rgba(59, 130, 246, 0.3),
+      inset 0 1px 1px rgba(255, 255, 255, 1);
+    border-color: rgba(139, 92, 246, 0.4);
+  }
+
+  .pricing-card:hover::after {
+    opacity: 1;
+  }
+
+  .pricing-card.featured {
+    border: 3px solid transparent;
+    background-image:
+      linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%),
+      linear-gradient(135deg, #3b82f6, #8b5cf6, #f59e0b);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  .pricing-card.featured::after {
+    opacity: 1;
+  }
+
+  .plan-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
+    color: white;
+    padding: 8px 18px;
+    border-radius: 25px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    margin-bottom: 24px;
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5), 0 0 30px rgba(234, 88, 12, 0.3);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    position: relative;
+    z-index: 1;
+    animation: badgeFloat 3s ease-in-out infinite;
+  }
+
+  @keyframes badgeFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  .plan-name {
+    font-size: 32px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #1e293b 0%, #3b82f6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .plan-price {
+    font-size: 64px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #f59e0b 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative;
+    z-index: 1;
+    line-height: 1.1;
+  }
+
+  .plan-price span {
+    font-size: 22px;
+    color: #64748b;
+    font-weight: 700;
+  }
+
+  .plan-description {
+    color: #475569;
+    font-size: 17px;
+    margin-bottom: 32px;
+    font-weight: 600;
+    position: relative;
+    z-index: 1;
+  }
+
+  .plan-features {
+    list-style: none;
+    padding: 0;
+    margin: 32px 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .plan-features li {
+    padding: 14px 0;
+    color: #1e293b;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+    transition: all 0.3s ease;
+  }
+
+  .plan-features li:hover {
+    padding-left: 8px;
+    color: #3b82f6;
+  }
+
+  .plan-features li:last-child {
+    border-bottom: none;
+  }
+
+  .plan-features li::before {
+    content: '✓';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: 900;
+    font-size: 16px;
+    flex-shrink: 0;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4), 0 0 20px rgba(34, 197, 94, 0.2);
+  }
+
+  /* Subscribe Buttons */
+  .subscribe-btn {
+    width: 100%;
+    padding: 20px 36px;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 18px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+      0 8px 25px rgba(59, 130, 246, 0.5),
+      0 0 40px rgba(59, 130, 246, 0.3),
+      inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .subscribe-btn::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1), height 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: -1;
+  }
+
+  .subscribe-btn::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .subscribe-btn:hover::before {
+    width: 400px;
+    height: 400px;
+  }
+
+  .subscribe-btn:hover::after {
+    left: 100%;
+  }
+
+  .subscribe-btn:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow:
+      0 15px 45px rgba(59, 130, 246, 0.6),
+      0 0 60px rgba(59, 130, 246, 0.5),
+      inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  }
+
+  .subscribe-btn:active {
+    transform: translateY(-2px) scale(1.01);
+  }
+
+  .subscribe-btn.trial {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
+    box-shadow:
+      0 8px 25px rgba(34, 197, 94, 0.5),
+      0 0 40px rgba(34, 197, 94, 0.3),
+      inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  }
+
+  .subscribe-btn.trial:hover {
+    box-shadow:
+      0 15px 45px rgba(34, 197, 94, 0.6),
+      0 0 60px rgba(34, 197, 94, 0.5),
+      inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  }
+
+  /* Payment Note */
+  .payment-note {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    backdrop-filter: blur(25px) saturate(180%);
+    border-radius: 20px;
+    box-shadow:
+      0 20px 60px rgba(0, 0, 0, 0.3),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9),
+      0 0 50px rgba(59, 130, 246, 0.15);
+    padding: 32px;
+    margin-top: 40px;
+    border: 2px solid rgba(59, 130, 246, 0.25);
+    border-left: 6px solid #3b82f6;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .payment-note::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.08), transparent);
+    animation: noteShimmer 4s infinite;
+  }
+
+  @keyframes noteShimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .payment-note h3 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    position: relative;
+    z-index: 1;
+  }
+
+  .payment-note p {
+    color: #334155;
+    font-size: 16px;
+    line-height: 1.8;
+    font-weight: 500;
+    margin: 15px 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .payment-note ul {
+    margin: 20px 0;
+    padding-left: 0;
+    list-style: none;
+    position: relative;
+    z-index: 1;
+  }
+
+  .payment-note ul li {
+    color: #334155;
+    font-size: 15px;
+    font-weight: 600;
+    margin: 12px 0;
+    padding-left: 36px;
+    position: relative;
+  }
+
+  .payment-note ul li::before {
+    content: '💎';
+    position: absolute;
+    left: 0;
+    font-size: 18px;
+  }
+
+  .payment-note strong {
+    color: #1e293b;
+    font-weight: 800;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
     .subscription-hero h1 {
-      font-size: 48px;
-      font-weight: 900;
-      margin-bottom: 20px;
-      text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-      position: relative;
-      z-index: 1;
+      font-size: 32px;
     }
 
     .subscription-hero p {
-      font-size: 20px;
-      opacity: 0.95;
-      margin-bottom: 0;
-      position: relative;
-      z-index: 1;
-    }
-
-    .subscription-status {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 252, 1) 100%);
-      backdrop-filter: blur(20px);
-      border-radius: 20px;
-      padding: 30px;
-      margin-bottom: 40px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-      border: 2px solid rgba(59, 130, 246, 0.3);
-    }
-
-    .subscription-status h2 {
-      color: #1e293b;
-      font-weight: 800;
-      margin-bottom: 20px;
-    }
-
-    .subscription-status p {
-      color: #334155;
       font-size: 16px;
-      line-height: 1.6;
     }
 
-    .status-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border-radius: 50px;
-      font-weight: 700;
-      font-size: 14px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 15px;
-    }
-
-    .status-badge.active {
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-      color: white;
-      box-shadow: 0 4px 15px rgba(34, 197, 94, 0.4);
-    }
-
-    .status-badge.trial {
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-      color: white;
-      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
-    }
-
-    .status-badge.expired {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-      color: white;
-      box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+    .subscription-hero {
+      padding: 40px 24px;
     }
 
     .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 30px;
-      margin-bottom: 40px;
+      grid-template-columns: 1fr;
+      gap: 24px;
     }
 
     .pricing-card {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(248, 250, 252, 1) 100%);
-      backdrop-filter: blur(20px);
-      border-radius: 24px;
-      padding: 40px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-      border: 2px solid rgba(59, 130, 246, 0.3);
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .pricing-card:hover {
-      transform: translateY(-8px);
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.3);
-      border-color: rgba(139, 92, 246, 0.5);
-    }
-
-    .pricing-card.featured {
-      border: 3px solid transparent;
-      border-image: linear-gradient(135deg, #3b82f6, #8b5cf6, #f59e0b);
-      border-image-slice: 1;
-    }
-
-    .pricing-card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.08), transparent);
-      transition: left 0.6s;
-    }
-
-    .pricing-card:hover::before {
-      left: 100%;
-    }
-
-    .plan-badge {
-      display: inline-block;
-      background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%);
-      color: white;
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      margin-bottom: 20px;
-    }
-
-    .plan-name {
-      font-size: 28px;
-      font-weight: 800;
-      color: #1e293b;
-      margin-bottom: 15px;
+      padding: 32px 24px;
     }
 
     .plan-price {
-      font-size: 56px;
-      font-weight: 900;
-      background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      margin-bottom: 10px;
-    }
-
-    .plan-price span {
-      font-size: 20px;
-      color: #64748b;
-    }
-
-    .plan-description {
-      color: #475569;
-      font-size: 16px;
-      margin-bottom: 30px;
-      font-weight: 500;
-    }
-
-    .plan-features {
-      list-style: none;
-      padding: 0;
-      margin: 30px 0;
-    }
-
-    .plan-features li {
-      padding: 12px 0;
-      color: #1e293b;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .plan-features li::before {
-      content: '✓';
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      height: 24px;
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-      color: white;
-      border-radius: 50%;
-      font-weight: 700;
-      flex-shrink: 0;
+      font-size: 48px;
     }
 
     .subscribe-btn {
-      width: 100%;
-      padding: 18px 32px;
-      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
-      color: white;
-      border: none;
-      border-radius: 14px;
-      font-size: 18px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      cursor: pointer;
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
-      position: relative;
-      overflow: hidden;
+      font-size: 16px;
+      padding: 16px 28px;
     }
-
-    .subscribe-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 35px rgba(59, 130, 246, 0.6);
-    }
-
-    .subscribe-btn.trial {
-      background: linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
-      box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
-    }
-
-    .subscribe-btn.trial:hover {
-      box-shadow: 0 12px 35px rgba(34, 197, 94, 0.6);
-    }
-
-    .payment-note {
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 250, 252, 0.95) 100%);
-      border-left: 4px solid #3b82f6;
-      padding: 24px;
-      border-radius: 12px;
-      margin-top: 40px;
-      color: #1e293b;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    }
-
-    .payment-note h3 {
-      margin-top: 0;
-      color: #3b82f6;
-      font-weight: 800;
-      font-size: 20px;
-    }
-
-    .payment-note p, .payment-note ul {
-      color: #334155;
-      font-size: 15px;
-      line-height: 1.8;
-    }
-
-    .payment-note ul li {
-      color: #334155;
-      margin: 8px 0;
-    }
-  </style>
+  }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="subscription-container">
-  <div class="subscription-hero">
-    <h1>🚀 {% trans "Unlock Crypto Rebalancing" %}</h1>
-    <p>{% trans "Automated portfolio management for just $10/month" %}</p>
-  </div>
+<div class="subscription-hero">
+  <h1>💎 {% trans "Unlock Crypto Rebalancing" %}</h1>
+  <p>{% trans "Automated portfolio management for just $10/month" %}</p>
+</div>
 
-  {% if subscription_info %}
-  <div class="subscription-status">
-    <h2 style="margin-top: 0;">{% trans "Current Status" %}</h2>
+{% if subscription_info %}
+<div class="subscription-status">
+  <h2>{% trans "Current Status" %}</h2>
 
-    {% if subscription_info.status == 'trial' %}
-      <div class="status-badge trial">
-        ⏰ {% trans "Free Trial Active" %}
-      </div>
-      <p style="font-size: 18px; margin-bottom: 10px;">
-        <strong>{{ subscription_info.days_remaining }}</strong> {% trans "days remaining in your trial" %}
-      </p>
-      <p style="color: #64748b;">
-        {% trans "Upgrade to premium to continue after your trial expires" %}
-      </p>
-    {% elif subscription_info.status == 'active' %}
-      <div class="status-badge active">
-        ✓ {% trans "Active Subscription" %}
-      </div>
-      <p style="font-size: 18px; margin-bottom: 10px;">
-        <strong>{{ subscription_info.days_remaining }}</strong> {% trans "days remaining" %}
-      </p>
-      <p style="color: #64748b;">
-        {% trans "Your subscription will automatically renew" %}
-      </p>
-    {% else %}
-      <div class="status-badge expired">
-        ✕ {% trans "No Active Subscription" %}
-      </div>
-      <p style="font-size: 18px; color: #64748b;">
-        {% trans "Subscribe to unlock automated rebalancing features" %}
-      </p>
-    {% endif %}
+  {% if subscription_info.status == 'trial' %}
+    <div class="status-badge trial">
+      ⏰ {% trans "Free Trial Active" %}
+    </div>
+    <p style="font-size: 18px; margin-bottom: 10px; font-weight: 700; color: #1e293b;">
+      <strong>{{ subscription_info.days_remaining }}</strong> {% trans "days remaining in your trial" %}
+    </p>
+    <p style="color: #64748b; font-weight: 600;">
+      {% trans "Upgrade to premium to continue after your trial expires" %}
+    </p>
+  {% elif subscription_info.status == 'active' %}
+    <div class="status-badge active">
+      ✓ {% trans "Active Subscription" %}
+    </div>
+    <p style="font-size: 18px; margin-bottom: 10px; font-weight: 700; color: #1e293b;">
+      <strong>{{ subscription_info.days_remaining }}</strong> {% trans "days remaining" %}
+    </p>
+    <p style="color: #64748b; font-weight: 600;">
+      {% trans "Your subscription will automatically renew" %}
+    </p>
+  {% else %}
+    <div class="status-badge expired">
+      ✕ {% trans "No Active Subscription" %}
+    </div>
+    <p style="font-size: 18px; color: #64748b; font-weight: 600;">
+      {% trans "Subscribe to unlock automated rebalancing features" %}
+    </p>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="pricing-grid">
+  <!-- Free Trial Card -->
+  {% if not profile.trial_used %}
+  <div class="pricing-card">
+    <div class="plan-name">🎁 {% trans "Free Trial" %}</div>
+    <div class="plan-price">$0<span>/7 days</span></div>
+    <div class="plan-description">
+      {% trans "Try all features risk-free for 7 days" %}
+    </div>
+
+    <ul class="plan-features">
+      <li>{% trans "Automated portfolio rebalancing" %}</li>
+      <li>{% trans "Custom rebalance intervals" %}</li>
+      <li>{% trans "Dry-run mode for testing" %}</li>
+      <li>{% trans "Real-time portfolio tracking" %}</li>
+      <li>{% trans "Trade history" %}</li>
+      <li>{% trans "7-day full access" %}</li>
+    </ul>
+
+    <form method="post" action="{% url 'dashboard:activate_trial' %}">
+      {% csrf_token %}
+      <button type="submit" class="subscribe-btn trial">
+        🚀 {% trans "Start Free Trial" %}
+      </button>
+    </form>
   </div>
   {% endif %}
 
-  <div class="pricing-grid">
-    <!-- Free Trial Card -->
-    {% if not profile.trial_used %}
-    <div class="pricing-card">
-      <div class="plan-name">{% trans "Free Trial" %}</div>
-      <div class="plan-price">$0<span>/7 days</span></div>
-      <div class="plan-description">
-        {% trans "Try all features risk-free for 7 days" %}
-      </div>
-
-      <ul class="plan-features">
-        <li>{% trans "Automated portfolio rebalancing" %}</li>
-        <li>{% trans "Custom rebalance intervals" %}</li>
-        <li>{% trans "Dry-run mode for testing" %}</li>
-        <li>{% trans "Real-time portfolio tracking" %}</li>
-        <li>{% trans "Trade history" %}</li>
-        <li>{% trans "7-day full access" %}</li>
-      </ul>
-
-      <form method="post" action="{% url 'start_trial' %}">
-        {% csrf_token %}
-        <button type="submit" class="subscribe-btn trial">
-          {% trans "Start Free Trial" %}
-        </button>
-      </form>
+  <!-- Premium Card -->
+  <div class="pricing-card featured">
+    <span class="plan-badge">⭐ {% trans "Most Popular" %}</span>
+    <div class="plan-name">💎 {% trans "Premium" %}</div>
+    <div class="plan-price">$10<span>/month</span></div>
+    <div class="plan-description">
+      {% trans "Full access to all rebalancing features" %}
     </div>
-    {% endif %}
 
-    <!-- Premium Card -->
-    <div class="pricing-card featured">
-      <span class="plan-badge">{% trans "Most Popular" %}</span>
-      <div class="plan-name">{% trans "Premium" %}</div>
-      <div class="plan-price">$10<span>/month</span></div>
-      <div class="plan-description">
-        {% trans "Full access to all rebalancing features" %}
-      </div>
-
-      <ul class="plan-features">
-        <li>{% trans "Automated portfolio rebalancing" %}</li>
-        <li>{% trans "Custom rebalance intervals" %}</li>
-        <li>{% trans "Dry-run & live trading modes" %}</li>
-        <li>{% trans "Real-time portfolio tracking" %}</li>
-        <li>{% trans "Complete trade history" %}</li>
-        <li>{% trans "Priority support" %}</li>
-        <li>{% trans "Cancel anytime" %}</li>
-      </ul>
-
-      <button class="subscribe-btn" onclick="alert('Payment integration coming soon! This is a preview.')">
-        {% trans "Subscribe Now" %}
-      </button>
-    </div>
-  </div>
-
-  <div class="payment-note">
-    <h3>💳 {% trans "Payment Integration Coming Soon" %}</h3>
-    <p>
-      {% trans "We're currently preparing payment integration with Stripe/PayPal. Once complete, you'll be able to:" %}
-    </p>
-    <ul>
-      <li>{% trans "Subscribe with credit/debit card" %}</li>
-      <li>{% trans "Manage your subscription easily" %}</li>
-      <li>{% trans "Cancel anytime with one click" %}</li>
-      <li>{% trans "Secure payment processing" %}</li>
+    <ul class="plan-features">
+      <li>{% trans "Automated portfolio rebalancing" %}</li>
+      <li>{% trans "Custom rebalance intervals" %}</li>
+      <li>{% trans "Dry-run & live trading modes" %}</li>
+      <li>{% trans "Real-time portfolio tracking" %}</li>
+      <li>{% trans "Complete trade history" %}</li>
+      <li>{% trans "Priority support" %}</li>
+      <li>{% trans "Cancel anytime" %}</li>
     </ul>
-    <p>
-      <strong>{% trans "For now, trial access is available to test all features!" %}</strong>
-    </p>
+
+    <button class="subscribe-btn" onclick="alert('💳 Payment integration coming soon! This is a preview.')">
+      💎 {% trans "Subscribe Now" %}
+    </button>
   </div>
+</div>
+
+<div class="payment-note">
+  <h3>💳 {% trans "Payment Integration Coming Soon" %}</h3>
+  <p>
+    {% trans "We're currently preparing payment integration with Stripe/PayPal. Once complete, you'll be able to:" %}
+  </p>
+  <ul>
+    <li>{% trans "Subscribe with credit/debit card" %}</li>
+    <li>{% trans "Manage your subscription easily" %}</li>
+    <li>{% trans "Cancel anytime with one click" %}</li>
+    <li>{% trans "Secure payment processing" %}</li>
+  </ul>
+  <p>
+    <strong>{% trans "For now, trial access is available to test all features!" %}</strong>
+  </p>
 </div>
 {% endblock %}
