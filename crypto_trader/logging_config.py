@@ -46,7 +46,8 @@ def setup_logging():
     general_handler = RotatingFileHandler(
         log_dir / 'general.log',
         maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'
     )
     general_handler.setFormatter(detailed_formatter)
     general_logger.addHandler(general_handler)
@@ -88,7 +89,8 @@ def setup_logging():
     api_handler = RotatingFileHandler(
         log_dir / 'api.log',
         maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'
     )
     api_handler.setFormatter(detailed_formatter)
     api_logger.addHandler(api_handler)
@@ -102,7 +104,8 @@ def setup_logging():
     trade_handler = RotatingFileHandler(
         log_dir / 'trades.log',
         maxBytes=10*1024*1024,  # 10MB
-        backupCount=10  # Keep more trade logs
+        backupCount=10,  # Keep more trade logs
+        encoding='utf-8'
     )
     trade_handler.setFormatter(detailed_formatter)
     trade_logger.addHandler(trade_handler)
@@ -116,7 +119,8 @@ def setup_logging():
     error_handler = RotatingFileHandler(
         log_dir / 'errors.log',
         maxBytes=10*1024*1024,  # 10MB
-        backupCount=10  # Keep more error logs
+        backupCount=10,  # Keep more error logs
+        encoding='utf-8'
     )
     error_handler.setFormatter(detailed_formatter)
     error_logger.addHandler(error_handler)
@@ -130,7 +134,8 @@ def setup_logging():
     request_handler = RotatingFileHandler(
         log_dir / 'requests.log',
         maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'
     )
     request_handler.setFormatter(detailed_formatter)
     request_logger.addHandler(request_handler)
@@ -144,7 +149,8 @@ def setup_logging():
     perf_handler = RotatingFileHandler(
         log_dir / 'performance.log',
         maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'
     )
     perf_handler.setFormatter(detailed_formatter)
     perf_logger.addHandler(perf_handler)
@@ -158,7 +164,8 @@ def setup_logging():
     activity_handler = RotatingFileHandler(
         log_dir / 'user_activity.log',
         maxBytes=10*1024*1024,  # 10MB
-        backupCount=5
+        backupCount=5,
+        encoding='utf-8'
     )
     activity_handler.setFormatter(detailed_formatter)
     activity_logger.addHandler(activity_handler)
@@ -172,7 +179,8 @@ def setup_logging():
     debug_handler = RotatingFileHandler(
         log_dir / 'debug.log',
         maxBytes=20*1024*1024,  # 20MB
-        backupCount=3
+        backupCount=3,
+        encoding='utf-8'
     )
     debug_handler.setFormatter(debug_formatter)
     debug_logger.addHandler(debug_handler)
