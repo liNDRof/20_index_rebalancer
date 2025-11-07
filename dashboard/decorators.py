@@ -22,7 +22,7 @@ def subscription_required(view_func):
                     'status': 'error',
                     'message': _('Authentication required')
                 }, status=401)
-            return redirect('login')
+            return redirect('dashboard:login')
 
         # Get user profile
         try:
@@ -45,7 +45,7 @@ def subscription_required(view_func):
                 }, status=403)
             else:
                 messages.error(request, _('You need an active subscription to use rebalancing features. Subscribe for $10/month to unlock this feature.'))
-                return redirect('subscription')
+                return redirect('dashboard:subscription')
 
         # User has active subscription, proceed
         return view_func(request, *args, **kwargs)
@@ -66,7 +66,7 @@ def trial_or_subscription_required(view_func):
                     'status': 'error',
                     'message': _('Authentication required')
                 }, status=401)
-            return redirect('login')
+            return redirect('dashboard:login')
 
         try:
             profile = request.user.profile
@@ -94,7 +94,7 @@ def trial_or_subscription_required(view_func):
                 }, status=403)
             else:
                 messages.error(request, _('Your trial has expired. Subscribe for $10/month to continue.'))
-                return redirect('subscription')
+                return redirect('dashboard:subscription')
 
         return view_func(request, *args, **kwargs)
 

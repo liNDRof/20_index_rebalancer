@@ -740,7 +740,7 @@ def start_trial(request):
 
     if profile.trial_used:
         messages.error(request, _('You have already used your free trial.'))
-        return redirect('subscription')
+        return redirect('dashboard:subscription')
 
     if profile.start_free_trial(trial_days=7):
         messages.success(request, _('Free trial activated! You now have 7 days of full access.'))
@@ -748,7 +748,7 @@ def start_trial(request):
     else:
         messages.error(request, _('Unable to start trial. Please contact support.'))
 
-    return redirect('index')
+    return redirect('dashboard:index')
 
 
 @login_required
@@ -761,7 +761,7 @@ def cancel_subscription(request):
     messages.success(request, _('Subscription cancelled. You will retain access until the end of your billing period.'))
     logger.info(f"[{request.user.username}] Cancelled subscription")
 
-    return redirect('subscription')
+    return redirect('dashboard:subscription')
 
 
 @login_required
