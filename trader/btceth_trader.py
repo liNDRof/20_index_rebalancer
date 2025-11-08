@@ -18,7 +18,14 @@ debug_logger = logging.getLogger('debug')
 
 
 class BTCETH_CMC20_Trader:
-    """Автоматизований трейдер з розподілом портфеля між BTC та ETH на основі CMC20 Index"""
+    def __init__(self, binance_api_key=None, binance_api_secret=None,
+                 cmc_api_key=None, update_interval=None, index_type='top2'):
+        """
+        Initialize trader with index type
+
+        Args:
+            index_type: 'top2', 'top5', 'top10', or 'top20'
+        """
 
     def __init__(self, binance_api_key=None, binance_api_secret=None, cmc_api_key=None, update_interval=None):
         """
@@ -42,6 +49,8 @@ class BTCETH_CMC20_Trader:
 
         debug_logger.info("Creating Binance client...")
         self.client = Client(self.binance_api_key, self.binance_api_secret)
+
+        self.index_type = index_type
 
         # Synchronize timestamp with Binance server to avoid timestamp errors
         try:
@@ -1035,6 +1044,106 @@ class BTCETH_CMC20_Trader:
                 print(f"\n❌ Помилка в циклі ребалансування: {e}")
                 print(f"⏰ Спроба повторного запуску через {interval_seconds} секунд...")
                 time.sleep(interval_seconds)
+
+    def get_btc_eth_allocation_from_cmc20(self) -> dict:
+        """
+        Get allocation based on selected index type
+        Supports: top2, top5, top10, top20
+        """
+        api_logger.info(f"Fetching CMC allocation for index type: {self.index_type}")
+
+        try:
+            headers = {
+                'X-CMC_PRO_API_KEY': self.cmc_api_key,
+                'Accept': 'application/json'
+            }
+
+            params = {
+                'start': '1',
+                'limit': '50',
+                'convert': 'USD'
+            }
+
+            response = requests.get(self.cmc_api_url, headers=headers, params=params)
+            data = response.json()
+
+            if response.status_code != 200:
+                error_msg = data.get('status', {}).get('error_message', 'Unknown error')
+                error_logger.error(f"CoinMarketCap API error: {error_msg}")
+                return {}
+
+            coins = data['data']
+
+            # Remove all stablecoins
+            coins = [coin for coin in coins if coin['symbol'] not in self.stablecoins]
+
+            # Get top 20 (without stablecoins)
+            top20_coins = coins[:20]
+
+            # Calculate total market cap
+            total_market_cap = sum(coin['quote']['USD']['market_cap'] for coin in top20_coins)
+
+            # Determine number of coins based on index type
+            index_size_map = {
+                'top2': 2,
+                'top5': 5,
+                'top10': 10,
+                'top20': 20
+            }
+
+            selected_count = index_size_map.get(self.index_type, 2)
+
+            # Get selected coins
+            selected_coins = top20_coins[:selected_count]
+            remaining_coins = top20_coins[selected_count:]
+
+            # Calculate weights
+            selected_market_cap = sum(coin['quote']['USD']['market_cap'] for coin in selected_coins)
+            remaining_market_cap = sum(coin['quote']['USD']['market_cap'] for coin in remaining_coins)
+
+            # Calculate redistribution per selected coin
+            redistribution_per_coin = (remaining_market_cap / total_market_cap * 100) / selected_count
+
+            # Build allocation data
+            allocation_data = {}
+
+            print(f"\n🔍 INDEX DISTRIBUTION: {self.index_type.upper()}")
+            print(f"   📊 Total CMC20 market cap: ${total_market_cap:,.0f}")
+            print(f"   🎯 Selected coins: {selected_count}")
+            print(f"   📦 Remaining coins: {len(remaining_coins)}")
+            print(f"   ➗ Redistribution per coin: +{redistribution_per_coin:.2f}%\n")
+
+            for coin in selected_coins:
+                symbol = coin['symbol']
+                market_cap = coin['quote']['USD']['market_cap']
+                original_weight = (market_cap / total_market_cap) * 100
+                final_weight = original_weight + redistribution_per_coin
+
+                allocation_data[symbol] = {
+                    'rank': coin['cmc_rank'],
+                    'name': coin['name'],
+                    'original_weight': original_weight,
+                    'redistribution_bonus': redistribution_per_coin,
+                    'weight': final_weight,
+                    'market_cap': market_cap,
+                    'price': coin['quote']['USD']['price'],
+                    'change_24h': coin['quote']['USD']['percent_change_24h']
+                }
+
+                print(
+                    f"   {symbol:6s}: {original_weight:6.2f}% + {redistribution_per_coin:6.2f}% = {final_weight:6.2f}%")
+
+            # Verify total is 100%
+            total_weight = sum(data['weight'] for data in allocation_data.values())
+            print(f"\n   ✅ Total weight: {total_weight:.2f}% (should be 100%)\n")
+
+            api_logger.info(f"Successfully calculated {self.index_type} allocation")
+            return allocation_data
+
+        except Exception as e:
+            error_logger.error(f"Error fetching CMC allocation: {e}")
+            error_logger.error(traceback.format_exc())
+            return {}
 
 
 

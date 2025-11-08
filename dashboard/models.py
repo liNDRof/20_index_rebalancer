@@ -49,6 +49,18 @@ class UserProfile(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    index_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('top2', 'Top 2 (BTC + ETH)'),
+            ('top5', 'Top 5'),
+            ('top10', 'Top 10'),
+            ('top20', 'Top 20 (Full CMC20)'),
+        ],
+        default='top2',
+        help_text="Index distribution strategy"
+    )
+
     def __str__(self):
         return f"Profile: {self.user.username}"
 
@@ -232,4 +244,6 @@ class TradeHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.trade_type} at {self.created_at}"
+
+
 

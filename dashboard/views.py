@@ -68,7 +68,7 @@ def get_or_create_session(user):
 
 
 def create_user_trader(user):
-    """Create trader instance with user's credentials"""
+    """Create trader instance with user's credentials and index settings"""
     profile = get_or_create_profile(user)
 
     if not profile.has_binance_credentials():
@@ -80,7 +80,8 @@ def create_user_trader(user):
         binance_api_key=api_key,
         binance_api_secret=api_secret,
         cmc_api_key=profile.cmc_api_key,
-        update_interval=profile.default_interval
+        update_interval=profile.default_interval,
+        index_type=profile.index_type
     )
 
     return trader
@@ -1038,3 +1039,47 @@ def handle_payment_failed(invoice):
         # Optionally send notification to user
     except UserProfile.DoesNotExist:
         logger.error(f"No user found for customer: {customer_id}")
+
+
+@login_required
+def coin_index_settings_view(request):
+    """Coin Index Settings Page"""
+    profile = get_or_create_profile(request.user)
+
+    if request.method == 'POST':
+        index_type = request.POST.get('index_type')
+
+        if index_type in ['top2', 'top5', 'top10', 'top20']:
+            profile.index_type = index_type
+            profile.save()
+
+            messages.success(request,
+                             _('Index settings updated successfully! New distribution will be applied on next rebalancing.'))
+            logger.info(f"[{request.user.username}] Updated index type to: {index_type}")
+
+            return JsonResponse({
+                'status': 'ok',
+                'index_type': index_type,
+                'message': 'Settings saved successfully'
+            })
+        else:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'Invalid index type'
+            }, status=400)
+
+    return render(request, 'dashboard/coin_index_settings.html', {
+        'profile': profile,
+        'current_index': profile.index_type
+    })
+
+
+@login_required
+def get_index_settings_api(request):
+    """API endpoint to get current index settings"""
+    profile = get_or_create_profile(request.user)
+
+    return JsonResponse({
+        'status': 'ok',
+        'index_type': profile.index_type
+    })
