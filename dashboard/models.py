@@ -137,7 +137,7 @@ class UserProfile(models.Model):
         self.save()
         return True
 
-    def activate_subscription(self, duration_days=30):
+    def activate_subscription(self, duration_days=30, subscription_id=None, provider=None):
         """Activate paid subscription (called after payment)"""
         now = timezone.now()
 
@@ -150,6 +150,13 @@ class UserProfile(models.Model):
             self.subscription_end_date = now + timedelta(days=duration_days)
 
         self.subscription_status = 'active'
+
+        # Update payment provider details if provided
+        if subscription_id:
+            self.payment_subscription_id = subscription_id
+        if provider:
+            self.payment_provider = provider
+
         self.save()
         return True
 
