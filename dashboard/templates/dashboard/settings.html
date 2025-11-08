@@ -1,0 +1,270 @@
+SETTINGS_PAGE_HTML = '''
+{% extends 'dashboard/base.html' %}
+{% load i18n %}
+
+{% block title %}{% trans "Trading Settings" %}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Використовуємо стилі з profile.html */
+  .settings-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .settings-section {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.9) 100%);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 30px;
+    margin-bottom: 30px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+  }
+
+  .settings-section h2 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 25px;
+    padding-bottom: 12px;
+    border-bottom: 3px solid transparent;
+    border-image: linear-gradient(90deg, #3b82f6, #8b5cf6, #f59e0b);
+    border-image-slice: 1;
+  }
+
+  .form-group {
+    margin-bottom: 24px;
+  }
+
+  .form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #374151;
+  }
+
+  .form-group select,
+  .form-group input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    border-radius: 12px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+  }
+
+  .form-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 10px;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: white;
+    padding: 12px 32px;
+    border: none;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+  }
+
+  .info-box {
+    background: rgba(59, 130, 246, 0.1);
+    padding: 20px;
+    border-radius: 12px;
+    border-left: 4px solid #3b82f6;
+    margin: 20px 0;
+  }
+
+  .comparison-table {
+    width: 100%;
+    margin: 20px 0;
+    border-collapse: separate;
+    border-spacing: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  .comparison-table th,
+  .comparison-table td {
+    padding: 15px;
+    text-align: left;
+    border-bottom: 1px solid rgba(59, 130, 246, 0.1);
+  }
+
+  .comparison-table th {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: white;
+    font-weight: 700;
+  }
+
+  .comparison-table tr:nth-child(even) {
+    background: rgba(248, 250, 252, 0.5);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+  <h1>⚙️ {% trans "Trading Settings" %}</h1>
+
+  {% if message %}
+    <div class="alert alert-success">✅ {{ message }}</div>
+  {% endif %}
+
+  {% if error %}
+    <div class="alert alert-error">❌ {{ error }}</div>
+  {% endif %}
+
+  <div class="settings-section">
+    <h2>📊 {% trans "Index Configuration" %}</h2>
+    
+    <div class="info-box">
+      <p>
+        <strong>{% trans "Choose which CoinMarketCap index to follow:" %}</strong>
+      </p>
+      <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>CMC Top 20:</strong> {% trans "Focus on top 20 cryptocurrencies (higher concentration)" %}</li>
+        <li><strong>CMC Top 100:</strong> {% trans "Broader diversification across top 100 cryptocurrencies" %}</li>
+      </ul>
+    </div>
+
+    <table class="comparison-table">
+      <thead>
+        <tr>
+          <th>{% trans "Feature" %}</th>
+          <th>CMC Top 20</th>
+          <th>CMC Top 100</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>{% trans "Number of tokens" %}</strong></td>
+          <td>20 токенів</td>
+          <td>100 токенів</td>
+        </tr>
+        <tr>
+          <td><strong>{% trans "Your portfolio" %}</strong></td>
+          <td>BTC + ETH (2 токени)</td>
+          <td>BTC + ETH (2 токени)</td>
+        </tr>
+        <tr>
+          <td><strong>{% trans "Redistribution" %}</strong></td>
+          <td>Решта 18 → 50% BTC / 50% ETH</td>
+          <td>Решта 98 → 50% BTC / 50% ETH</td>
+        </tr>
+        <tr>
+          <td><strong>{% trans "BTC weight typical" %}</strong></td>
+          <td>~55-60%</td>
+          <td>~60-65%</td>
+        </tr>
+        <tr>
+          <td><strong>{% trans "ETH weight typical" %}</strong></td>
+          <td>~40-45%</td>
+          <td>~35-40%</td>
+        </tr>
+        <tr>
+          <td><strong>{% trans "Market cap coverage" %}</strong></td>
+          <td>~85% ринку</td>
+          <td>~95% ринку</td>
+        </tr>
+        <tr>
+          <td><strong>{% trans "Risk level" %}</strong></td>
+          <td>Середній</td>
+          <td>Нижчий (більша диверсифікація)</td>
+        </tr>
+        <tr>
+          <td><strong>{% trans "Best for" %}</strong></td>
+          <td>Агресивний ріст</td>
+          <td>Стабільність та індекс</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <form method="post" action="{% url 'dashboard:save_trading_settings' %}">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label>📈 {% trans "Index Type" %}:</label>
+        <select name="cmc_index_type">
+          <option value="CMC20" {% if profile.cmc_index_type == 'CMC20' %}selected{% endif %}>
+            CMC Top 20 Index ({% trans "recommended for most users" %})
+          </option>
+          <option value="CMC100" {% if profile.cmc_index_type == 'CMC100' %}selected{% endif %}>
+            CMC Top 100 Index ({% trans "maximum diversification" %})
+          </option>
+        </select>
+        <small style="color: #64748b; margin-top: 8px; display: block;">
+          {% trans "Current setting" %}: <strong>{{ profile.cmc_index_type }}</strong>
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label>💵 {% trans "Minimum Trade Threshold (USD)" %}:</label>
+        <input type="number" 
+               name="min_trade_threshold" 
+               value="{{ profile.min_trade_threshold }}" 
+               min="1" 
+               max="100" 
+               step="0.5">
+        <small style="color: #64748b; margin-top: 8px; display: block;">
+          {% trans "Minimum value for market orders. Values below this will use Convert API." %}
+          <br>{% trans "Recommended: $5-10" %}
+        </small>
+      </div>
+
+      <div class="form-group">
+        <label style="display: flex; align-items: center;">
+          <input type="checkbox" 
+                 name="auto_convert_dust" 
+                 {% if profile.auto_convert_dust %}checked{% endif %}>
+          <span>🧹 {% trans "Auto-convert dust to target assets" %}</span>
+        </label>
+        <small style="color: #64748b; margin-top: 8px; display: block;">
+          {% trans "Automatically convert small balances (< threshold) into BTC/ETH to maintain target allocation" %}
+        </small>
+      </div>
+
+      <button type="submit" class="btn-primary">
+        💾 {% trans "Save Settings" %}
+      </button>
+    </form>
+  </div>
+
+  <div class="settings-section">
+    <h2>ℹ️ {% trans "How It Works" %}</h2>
+    
+    <p><strong>{% trans "Allocation Logic:" %}</strong></p>
+    <ol style="line-height: 1.8;">
+      <li>{% trans "System fetches top N tokens from CoinMarketCap (20 or 100)" %}</li>
+      <li>{% trans "Excludes stablecoins from the list" %}</li>
+      <li>{% trans "Calculates BTC and ETH market cap weights" %}</li>
+      <li>{% trans "Takes the remaining N-2 tokens market cap and splits 50/50 between BTC and ETH" %}</li>
+      <li>{% trans "Your portfolio will follow this allocation automatically" %}</li>
+    </ol>
+
+    <p style="margin-top: 20px;"><strong>{% trans "Example with CMC20:" %}</strong></p>
+    <ul style="line-height: 1.8;">
+      <li>BTC original weight: 40% of top 20</li>
+      <li>ETH original weight: 15% of top 20</li>
+      <li>Other 18 tokens: 45% of top 20</li>
+      <li>Redistribution: 45% ÷ 2 = 22.5% to each</li>
+      <li><strong>Final: BTC 62.5% | ETH 37.5%</strong></li>
+    </ul>
+  </div>
+
+  <div style="margin-top: 30px;">
+    <a href="{% url 'dashboard:index' %}" class="btn-primary">
+      ← {% trans "Back to Dashboard" %}
+    </a>
+  </div>
+</div>
+{% endblock %}
