@@ -230,6 +230,7 @@
           <span style="margin-left:6px;">{{ request.user.username }}</span>
         </a>
         <a href="{% url 'dashboard:logout' %}" aria-label="Logout">{% trans 'Logout' %}</a>
+        <a href="{% url 'dashboard:coin_index_settings' %}">⚙️ Index Settings</a>
       {% else %}
         <a href="{% url 'dashboard:login' %}" aria-label="Login">{% trans 'Login' %}</a>
         <a href="{% url 'dashboard:register' %}" aria-label="Register">{% trans 'Register' %}</a>

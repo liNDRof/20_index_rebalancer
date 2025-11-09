@@ -1,0 +1,1067 @@
+{% extends 'dashboard/base.html' %}
+{% load i18n %}
+{% block title %}{% trans 'Index Settings' %}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Index Settings - Ultra Modern Crypto Theme */
+  .settings-hero {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    backdrop-filter: blur(25px);
+    border-radius: 28px;
+    padding: 50px;
+    margin-bottom: 40px;
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.4),
+      0 0 70px rgba(59, 130, 246, 0.3),
+      inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .settings-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.2) 0%, transparent 70%);
+    animation: heroSpin 20s linear infinite;
+  }
+
+  @keyframes heroSpin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .settings-hero h1 {
+    font-size: 48px;
+    font-weight: 900;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0 0 20px 0;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .settings-hero p {
+    font-size: 20px;
+    font-weight: 600;
+    color: #475569;
+    position: relative;
+    z-index: 1;
+    margin: 0;
+  }
+
+  /* Tab System */
+  .tab-container {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 27, 75, 0.8) 100%);
+    backdrop-filter: blur(20px);
+    border-radius: 20px;
+    padding: 8px;
+    margin-bottom: 40px;
+    display: flex;
+    gap: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(59, 130, 246, 0.3);
+  }
+
+  .tab-button {
+    flex: 1;
+    padding: 20px 32px;
+    background: transparent;
+    color: #cbd5e1;
+    border: none;
+    border-radius: 14px;
+    font-size: 18px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .tab-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+    transition: left 0.5s;
+  }
+
+  .tab-button:hover::before {
+    left: 100%;
+  }
+
+  .tab-button:hover {
+    color: white;
+    transform: translateY(-2px);
+  }
+
+  .tab-button.active {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+    color: white;
+    box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5), 0 0 40px rgba(139, 92, 246, 0.3);
+    transform: scale(1.05);
+  }
+
+  /* Tab Content */
+  .tab-content {
+    display: none;
+  }
+
+  .tab-content.active {
+    display: block;
+    animation: fadeIn 0.5s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Info Banner */
+  .info-banner {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 32px;
+    margin-bottom: 40px;
+    border: 2px solid rgba(59, 130, 246, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+
+  .info-banner h3 {
+    font-size: 22px;
+    font-weight: 900;
+    color: #e0e7ff;
+    margin: 0 0 16px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .info-banner p {
+    color: #cbd5e1;
+    line-height: 1.8;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  /* Grid */
+  .options-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+  }
+
+  /* Option Card */
+  .option-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(255, 255, 255, 0.95) 100%);
+    backdrop-filter: blur(25px);
+    border-radius: 24px;
+    padding: 32px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 3px solid rgba(59, 130, 246, 0.2);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
+  }
+
+  .option-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.1), transparent);
+    animation: cardShimmer 3s infinite;
+  }
+
+  @keyframes cardShimmer {
+    0% { left: -100%; }
+    100% { left: 100%; }
+  }
+
+  .option-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 24px;
+    padding: 3px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.8), rgba(139, 92, 246, 0.8), rgba(236, 72, 153, 0.6));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0;
+    transition: opacity 0.4s;
+    pointer-events: none;
+  }
+
+  .option-card:hover {
+    transform: translateY(-10px) scale(1.03);
+    box-shadow:
+      0 30px 80px rgba(0, 0, 0, 0.4),
+      0 0 60px rgba(59, 130, 246, 0.4);
+    border-color: rgba(139, 92, 246, 0.5);
+  }
+
+  .option-card:hover::after {
+    opacity: 1;
+  }
+
+  .option-card.selected {
+    border: 4px solid #3b82f6;
+    box-shadow:
+      0 30px 80px rgba(59, 130, 246, 0.7),
+      0 0 80px rgba(59, 130, 246, 0.6);
+    transform: scale(1.08);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(240, 247, 255, 1) 100%);
+  }
+
+  .option-card.selected::after {
+    opacity: 1;
+  }
+
+  /* Check Badge */
+  .check-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 25px rgba(34, 197, 94, 0.6);
+    z-index: 10;
+    animation: checkBounce 1s ease-in-out infinite;
+  }
+
+  .option-card.selected .check-badge {
+    display: flex;
+  }
+
+  @keyframes checkBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+
+  /* Icon */
+  .card-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    font-size: 40px;
+    box-shadow: 0 12px 35px rgba(0, 0, 0, 0.25);
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Different gradients for each card type */
+  .gradient-1 { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+  .gradient-2 { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); }
+  .gradient-3 { background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); }
+  .gradient-4 { background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); }
+  .gradient-5 { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+  .gradient-6 { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+  .gradient-7 { background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%); }
+  .gradient-8 { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); }
+
+  /* Card Content */
+  .card-title {
+    font-size: 22px;
+    font-weight: 900;
+    color: #0f172a;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-subtitle {
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .stat-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #334155;
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .stat-icon {
+    font-size: 18px;
+  }
+
+  /* Formula Badge */
+  .formula-badge {
+    background: linear-gradient(135deg, rgba(226, 232, 240, 0.9) 0%, rgba(241, 245, 249, 0.9) 100%);
+    padding: 14px 18px;
+    border-radius: 12px;
+    border: 2px solid #cbd5e1;
+    margin-top: 16px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .formula-label {
+    font-size: 10px;
+    font-weight: 900;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  .formula-text {
+    font-size: 11px;
+    color: #475569;
+    font-family: 'Courier New', monospace;
+    line-height: 1.5;
+    font-weight: 600;
+  }
+
+  /* Selection Summary */
+  .selection-summary {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(59, 130, 246, 0.25) 100%);
+    backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 36px;
+    margin-bottom: 36px;
+    border: 2px solid rgba(139, 92, 246, 0.4);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .summary-title {
+    font-size: 26px;
+    font-weight: 900;
+    color: #f0f9ff;
+    margin-bottom: 24px;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  }
+
+  .summary-content {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .summary-icon {
+    font-size: 64px;
+  }
+
+  .summary-details h4 {
+    font-size: 24px;
+    font-weight: 900;
+    color: white;
+    margin: 0 0 10px 0;
+    text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  }
+
+  .summary-details p {
+    color: #cbd5e1;
+    font-weight: 600;
+    font-size: 16px;
+    margin: 0;
+  }
+
+  /* Save Button */
+  .save-button {
+    width: 100%;
+    padding: 26px 48px;
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%);
+    color: white;
+    border: none;
+    border-radius: 20px;
+    font-size: 22px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow:
+      0 15px 45px rgba(59, 130, 246, 0.6),
+      0 0 60px rgba(139, 92, 246, 0.4);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .save-button::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition: width 0.7s, height 0.7s;
+  }
+
+  .save-button:hover::before {
+    width: 500px;
+    height: 500px;
+  }
+
+  .save-button:hover {
+    transform: translateY(-5px) scale(1.02);
+    box-shadow:
+      0 25px 60px rgba(59, 130, 246, 0.7),
+      0 0 80px rgba(139, 92, 246, 0.6);
+  }
+
+  .save-button:active {
+    transform: translateY(-3px) scale(1.01);
+  }
+
+  /* Warning Banner */
+  .warning-banner {
+    background: linear-gradient(135deg, rgba(251, 146, 60, 0.2) 0%, rgba(239, 68, 68, 0.2) 100%);
+    backdrop-filter: blur(15px);
+    border-radius: 20px;
+    padding: 28px 36px;
+    margin-top: 36px;
+    border: 2px solid rgba(251, 146, 60, 0.4);
+    box-shadow: 0 10px 30px rgba(251, 146, 60, 0.3);
+  }
+
+  .warning-banner p {
+    color: #fed7aa;
+    text-align: center;
+    font-weight: 700;
+    font-size: 15px;
+    margin: 0;
+    line-height: 1.7;
+  }
+
+  /* Success Toast */
+  .success-toast {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+    padding: 24px 40px;
+    border-radius: 20px;
+    box-shadow: 0 15px 50px rgba(34, 197, 94, 0.6);
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-weight: 900;
+    font-size: 18px;
+    animation: toastSlide 0.5s ease;
+    z-index: 2000;
+  }
+
+  @keyframes toastSlide {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .settings-hero {
+      padding: 32px 24px;
+    }
+
+    .settings-hero h1 {
+      font-size: 32px;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .tab-container {
+      flex-direction: column;
+    }
+
+    .options-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .summary-content {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .save-button {
+      font-size: 18px;
+      padding: 20px 32px;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="settings-hero">
+  <h1>
+    <span style="font-size: 56px;">⚙️</span>
+    {% trans "Index Settings" %}
+  </h1>
+  <p>{% trans "Choose your portfolio distribution strategy - CMC20 or CMC100 Index" %}</p>
+</div>
+
+<!-- Tab Switcher -->
+<div class="tab-container">
+  <button class="tab-button active" onclick="switchTab('cmc20')">
+    <span style="font-size: 20px;">🔹</span> CMC20 Index
+  </button>
+  <button class="tab-button" onclick="switchTab('cmc100')">
+    <span style="font-size: 20px;">💠</span> CMC100 Index
+  </button>
+</div>
+
+<form method="post" id="indexForm">
+  {% csrf_token %}
+  <input type="hidden" name="index_type" id="selectedIndex" value="{{ current_index }}">
+  <input type="hidden" name="index_base" id="selectedBase" value="{{ current_base|default:'cmc20' }}">
+
+  <!-- CMC20 TAB -->
+  <div id="cmc20-tab" class="tab-content active">
+    <div class="info-banner">
+      <h3>
+        <span style="font-size: 28px;">💡</span>
+        {% trans "CMC20 Distribution" %}
+      </h3>
+      <p>
+        {% trans "Select coins maintain their CMC20 weights, while remaining coins' weights are redistributed equally among selected coins." %}
+      </p>
+    </div>
+
+    <div class="options-grid">
+      <!-- Top 2 -->
+      <div class="option-card {% if current_index == 'top2' and current_base == 'cmc20' %}selected{% endif %}"
+           data-index="top2" data-base="cmc20" onclick="selectOption('top2', 'cmc20')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-1">💎</div>
+        <div class="card-title">Top 2</div>
+        <div class="card-subtitle">BTC + ETH</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>2 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+18 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (18 coins ÷ 2)</div>
+        </div>
+      </div>
+
+      <!-- Top 5 -->
+      <div class="option-card {% if current_index == 'top5' and current_base == 'cmc20' %}selected{% endif %}"
+           data-index="top5" data-base="cmc20" onclick="selectOption('top5', 'cmc20')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-2">⭐</div>
+        <div class="card-title">Top 5</div>
+        <div class="card-subtitle">Top 5 by market cap</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>5 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+15 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (15 coins ÷ 5)</div>
+        </div>
+      </div>
+
+      <!-- Top 10 -->
+      <div class="option-card {% if current_index == 'top10' and current_base == 'cmc20' %}selected{% endif %}"
+           data-index="top10" data-base="cmc20" onclick="selectOption('top10', 'cmc20')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-3">🏆</div>
+        <div class="card-title">Top 10</div>
+        <div class="card-subtitle">Top 10 by market cap</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>10 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+10 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (10 coins ÷ 10)</div>
+        </div>
+      </div>
+
+      <!-- Top 20 -->
+      <div class="option-card {% if current_index == 'top20' and current_base == 'cmc20' %}selected{% endif %}"
+           data-index="top20" data-base="cmc20" onclick="selectOption('top20', 'cmc20')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-4">🌟</div>
+        <div class="card-title">Top 20</div>
+        <div class="card-subtitle">Full CMC20</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>20 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>Original weights</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Original CMC20 weight</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CMC100 TAB -->
+  <div id="cmc100-tab" class="tab-content">
+    <div class="info-banner">
+      <h3>
+        <span style="font-size: 28px;">💠</span>
+        {% trans "CMC100 Distribution" %}
+      </h3>
+      <p>
+        {% trans "Expanded index with top 100 cryptocurrencies. Choose every 10 coins (30, 40, 50, etc.) for more diversification." %}
+      </p>
+    </div>
+
+    <div class="options-grid">
+      <!-- Top 30 -->
+      <div class="option-card {% if current_index == 'top30' and current_base == 'cmc100' %}selected{% endif %}"
+           data-index="top30" data-base="cmc100" onclick="selectOption('top30', 'cmc100')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-5">🔷</div>
+        <div class="card-title">Top 30</div>
+        <div class="card-subtitle">Extended top 30</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>30 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+70 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (70 coins ÷ 30)</div>
+        </div>
+      </div>
+
+      <!-- Top 40 -->
+      <div class="option-card {% if current_index == 'top40' and current_base == 'cmc100' %}selected{% endif %}"
+           data-index="top40" data-base="cmc100" onclick="selectOption('top40', 'cmc100')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-6">💠</div>
+        <div class="card-title">Top 40</div>
+        <div class="card-subtitle">Mid-range expansion</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>40 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+60 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (60 coins ÷ 40)</div>
+        </div>
+      </div>
+
+      <!-- Top 50 -->
+      <div class="option-card {% if current_index == 'top50' and current_base == 'cmc100' %}selected{% endif %}"
+           data-index="top50" data-base="cmc100" onclick="selectOption('top50', 'cmc100')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-7">🔹</div>
+        <div class="card-title">Top 50</div>
+        <div class="card-subtitle">Half of CMC100</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>50 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+50 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (50 coins ÷ 50)</div>
+        </div>
+      </div>
+
+      <!-- Top 60 -->
+      <div class="option-card {% if current_index == 'top60' and current_base == 'cmc100' %}selected{% endif %}"
+           data-index="top60" data-base="cmc100" onclick="selectOption('top60', 'cmc100')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-8">💫</div>
+        <div class="card-title">Top 60</div>
+        <div class="card-subtitle">Broad diversification</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>60 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+40 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (40 coins ÷ 60)</div>
+        </div>
+      </div>
+
+      <!-- Top 70 -->
+      <div class="option-card {% if current_index == 'top70' and current_base == 'cmc100' %}selected{% endif %}"
+           data-index="top70" data-base="cmc100" onclick="selectOption('top70', 'cmc100')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-1">🌐</div>
+        <div class="card-title">Top 70</div>
+        <div class="card-subtitle">Extended portfolio</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>70 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+30 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (30 coins ÷ 70)</div>
+        </div>
+      </div>
+
+      <!-- Top 80 -->
+      <div class="option-card {% if current_index == 'top80' and current_base == 'cmc100' %}selected{% endif %}"
+           data-index="top80" data-base="cmc100" onclick="selectOption('top80', 'cmc100')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-2">🎯</div>
+        <div class="card-title">Top 80</div>
+        <div class="card-subtitle">Comprehensive coverage</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>80 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+20 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (20 coins ÷ 80)</div>
+        </div>
+      </div>
+
+      <!-- Top 90 -->
+      <div class="option-card {% if current_index == 'top90' and current_base == 'cmc100' %}selected{% endif %}"
+           data-index="top90" data-base="cmc100" onclick="selectOption('top90', 'cmc100')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-3">🌌</div>
+        <div class="card-title">Top 90</div>
+        <div class="card-subtitle">Near-complete index</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>90 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>+10 coins split</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Weight + (10 coins ÷ 90)</div>
+        </div>
+      </div>
+
+      <!-- Top 100 -->
+      <div class="option-card {% if current_index == 'top100' and current_base == 'cmc100' %}selected{% endif %}"
+           data-index="top100" data-base="cmc100" onclick="selectOption('top100', 'cmc100')">
+        <div class="check-badge">✓</div>
+        <div class="card-icon gradient-4">🏅</div>
+        <div class="card-title">Top 100</div>
+        <div class="card-subtitle">Full CMC100</div>
+        <div class="card-stats">
+          <div class="stat-row">
+            <span class="stat-icon">🪙</span>
+            <span>100 coins</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-icon">📊</span>
+            <span>Original weights</span>
+          </div>
+        </div>
+        <div class="formula-badge">
+          <div class="formula-label">Formula</div>
+          <div class="formula-text">Original CMC100 weight</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Selection Summary -->
+  <div class="selection-summary">
+    <div class="summary-title">📊 {% trans "Current Selection" %}</div>
+    <div class="summary-content" id="summaryContent">
+      <!-- Populated by JavaScript -->
+    </div>
+  </div>
+
+  <!-- Save Button -->
+  <button type="submit" class="save-button" id="saveButton">
+    💾 {% trans "Save Settings & Apply Distribution" %}
+  </button>
+</form>
+
+<!-- Warning Banner -->
+<div class="warning-banner">
+  <p>
+    ⚠️ {% trans "Changing index settings will affect your next rebalancing operation. Make sure to review the new distribution before executing trades." %}
+  </p>
+</div>
+
+<div style="margin-top: 40px;">
+  <a href="{% url 'dashboard:index' %}" style="display: inline-block; padding: 16px 36px; background: linear-gradient(135deg, #64748b 0%, #475569 100%); color: white; border-radius: 14px; text-decoration: none; font-weight: 800; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); transition: all 0.3s;">
+    ← {% trans "Back to Dashboard" %}
+  </a>
+</div>
+
+<script>
+function getCookie(name) {
+  let cookieValue = null;
+  if (document.cookie && document.cookie !== '') {
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.substring(0, name.length + 1) === (name + '=')) {
+        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+        break;
+      }
+    }
+  }
+  return cookieValue;
+}
+
+// Index data configuration
+const indexData = {
+  'cmc20': {
+    'top2': { icon: '💎', name: 'Top 2 (BTC + ETH)', desc: 'Bitcoin and Ethereum only', coins: 2 },
+    'top5': { icon: '⭐', name: 'Top 5', desc: 'Top 5 by market cap', coins: 5 },
+    'top10': { icon: '🏆', name: 'Top 10', desc: 'Top 10 by market cap', coins: 10 },
+    'top20': { icon: '🌟', name: 'Top 20', desc: 'Full CMC20 Index', coins: 20 }
+  },
+  'cmc100': {
+    'top30': { icon: '🔷', name: 'Top 30', desc: 'Extended top 30', coins: 30 },
+    'top40': { icon: '💠', name: 'Top 40', desc: 'Mid-range expansion', coins: 40 },
+    'top50': { icon: '🔹', name: 'Top 50', desc: 'Half of CMC100', coins: 50 },
+    'top60': { icon: '💫', name: 'Top 60', desc: 'Broad diversification', coins: 60 },
+    'top70': { icon: '🌐', name: 'Top 70', desc: 'Extended portfolio', coins: 70 },
+    'top80': { icon: '🎯', name: 'Top 80', desc: 'Comprehensive coverage', coins: 80 },
+    'top90': { icon: '🌌', name: 'Top 90', desc: 'Near-complete index', coins: 90 },
+    'top100': { icon: '🏅', name: 'Top 100', desc: 'Full CMC100 Index', coins: 100 }
+  }
+};
+
+let currentIndex = '{{ current_index }}' || 'top2';
+let currentBase = '{{ current_base }}' || 'cmc20';
+
+function switchTab(base) {
+  // Update tab buttons
+  document.querySelectorAll('.tab-button').forEach(btn => {
+    btn.classList.remove('active');
+  });
+  event.target.classList.add('active');
+
+  // Update tab content
+  document.querySelectorAll('.tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+  document.getElementById(`${base}-tab`).classList.add('active');
+
+  // Update current base
+  currentBase = base;
+  document.getElementById('selectedBase').value = base;
+
+  // Select first option of new base if current selection doesn't exist
+  const baseOptions = indexData[base];
+  if (!baseOptions[currentIndex]) {
+    const firstOption = Object.keys(baseOptions)[0];
+    selectOption(firstOption, base);
+  } else {
+    updateSummary();
+  }
+}
+
+function selectOption(index, base) {
+  // Remove all selections
+  document.querySelectorAll('.option-card').forEach(card => {
+    card.classList.remove('selected');
+  });
+
+  // Add selection to clicked card
+  const card = document.querySelector(`.option-card[data-index="${index}"][data-base="${base}"]`);
+  if (card) {
+    card.classList.add('selected');
+  }
+
+  // Update hidden inputs
+  currentIndex = index;
+  currentBase = base;
+  document.getElementById('selectedIndex').value = index;
+  document.getElementById('selectedBase').value = base;
+
+  // Update summary
+  updateSummary();
+}
+
+function updateSummary() {
+  const data = indexData[currentBase][currentIndex];
+  if (!data) return;
+
+  const summaryContent = document.getElementById('summaryContent');
+  const baseLabel = currentBase === 'cmc20' ? 'CMC20' : 'CMC100';
+  const totalCoins = currentBase === 'cmc20' ? 20 : 100;
+  const remaining = totalCoins - data.coins;
+
+  summaryContent.innerHTML = `
+    <div class="summary-icon">${data.icon}</div>
+    <div class="summary-details">
+      <h4>${data.name}</h4>
+      <p>${data.desc}</p>
+      <p style="margin-top: 10px; font-size: 14px; color: #94a3b8;">
+        ${baseLabel} Index • ${data.coins} coins selected • ${remaining} coins redistributed
+      </p>
+    </div>
+  `;
+}
+
+// Form submission
+document.getElementById('indexForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+
+  const formData = new FormData(this);
+  const button = document.getElementById('saveButton');
+
+  button.disabled = true;
+  button.innerHTML = '⏳ {% trans "Saving..." %}';
+
+  fetch('{% url "dashboard:coin_index_settings" %}', {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': getCookie('csrftoken')
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.status === 'ok') {
+      // Show success toast
+      const toast = document.createElement('div');
+      toast.className = 'success-toast';
+      toast.innerHTML = `
+        <span style="font-size: 28px;">✓</span>
+        <span>{% trans "Settings saved successfully!" %} ✨</span>
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
+
+      button.innerHTML = '✓ {% trans "Saved Successfully!" %}';
+
+      setTimeout(() => {
+        button.innerHTML = '💾 {% trans "Save Settings & Apply Distribution" %}';
+        button.disabled = false;
+      }, 2000);
+    } else {
+      alert('{% trans "Error saving settings. Please try again." %}');
+      button.innerHTML = '💾 {% trans "Save Settings & Apply Distribution" %}';
+      button.disabled = false;
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('{% trans "Error saving settings. Please try again." %}');
+    button.innerHTML = '💾 {% trans "Save Settings & Apply Distribution" %}';
+    button.disabled = false;
+  });
+});
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  updateSummary();
+});
+</script>
+{% endblock %}

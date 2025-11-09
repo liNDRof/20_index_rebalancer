@@ -33,4 +33,9 @@ urlpatterns = [
     path('set_next_rebalance_time/', views.set_next_rebalance_time, name='set_next_rebalance_time'),
     path('manual_rebalance/', views.manual_rebalance, name='manual_rebalance'),
     path('toggle_dry_run/', views.toggle_dry_run, name='toggle_dry_run'),
+    path('settings/coin-index/', views.coin_index_settings_view, name='coin_index_settings'),
+    path('settings/coin-index/api/', views.get_index_settings_api, name='index_settings_api'),
+    path('settings/', views.trading_settings_view, name='trading_settings'),
+    path('settings/save/', views.trading_settings_view, name='save_trading_settings'),
+
 ]

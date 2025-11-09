@@ -21,6 +21,23 @@ class UserProfile(models.Model):
     default_interval = models.IntegerField(default=3600, help_text="Default rebalance interval in seconds")
     auto_rebalance = models.BooleanField(default=False, help_text="Enable automatic rebalancing")
 
+    # Index Selection - NEW FIELDS
+    index_base = models.CharField(
+        max_length=10,
+        choices=[
+            ('cmc20', 'CMC20'),
+            ('cmc100', 'CMC100'),
+        ],
+        default='cmc20',
+        help_text="Base index to use (CMC20 or CMC100)"
+    )
+
+    index_type = models.CharField(
+        max_length=10,
+        default='top2',
+        help_text="Index type (top2, top5, top10, top20 for CMC20; top30-top100 for CMC100)"
+    )
+
     # Subscription Management
     subscription_status = models.CharField(
         max_length=20,
@@ -38,16 +55,40 @@ class UserProfile(models.Model):
 
     # Payment tracking (for future payment integration)
     payment_provider = models.CharField(max_length=50, blank=True, null=True, help_text="e.g., stripe, paypal")
-    payment_customer_id = models.CharField(max_length=255, blank=True, null=True, help_text="Customer ID from payment provider")
-    payment_subscription_id = models.CharField(max_length=255, blank=True, null=True, help_text="Subscription ID from payment provider")
+    payment_customer_id = models.CharField(max_length=255, blank=True, null=True,
+                                           help_text="Customer ID from payment provider")
+    payment_subscription_id = models.CharField(max_length=255, blank=True, null=True,
+                                               help_text="Subscription ID from payment provider")
 
     # Free trial
     trial_used = models.BooleanField(default=False, help_text="Has user used their free trial?")
     trial_end_date = models.DateTimeField(null=True, blank=True, help_text="When trial expires")
 
-    # Timestamps
+    # Timestamps - ADDED BACK
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    cmc_index_type = models.CharField(
+        max_length=10,
+        choices=[
+            ('CMC20', 'Top 20 Index'),
+            ('CMC100', 'Top 100 Index'),
+        ],
+        default='CMC20',
+        help_text="Which CoinMarketCap index to follow"
+    )
+
+    auto_convert_dust = models.BooleanField(
+        default=True,
+        help_text="Automatically convert small balances (<$5) to target assets"
+    )
+
+    min_trade_threshold = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=5.00,
+        help_text="Minimum value for market orders (USD)"
+    )
 
     def __str__(self):
         return f"Profile: {self.user.username}"
@@ -91,6 +132,10 @@ class UserProfile(models.Model):
         """Check if user has configured Binance credentials"""
         return bool(self.binance_api_key_encrypted and self.binance_api_secret_encrypted)
 
+    def get_index_display(self):
+        """Get human-readable index configuration"""
+        return f"{self.index_base.upper()} - {self.index_type.upper()}"
+
     # Subscription Management Methods
     def has_active_subscription(self):
         """Check if user has an active subscription or valid trial"""
@@ -125,7 +170,7 @@ class UserProfile(models.Model):
         self.save()
         return True
 
-    def activate_subscription(self, duration_days=30):
+    def activate_subscription(self, duration_days=30, subscription_id=None, provider=None):
         """Activate paid subscription (called after payment)"""
         now = timezone.now()
 
@@ -138,6 +183,13 @@ class UserProfile(models.Model):
             self.subscription_end_date = now + timedelta(days=duration_days)
 
         self.subscription_status = 'active'
+
+        # Update payment provider details if provided
+        if subscription_id:
+            self.payment_subscription_id = subscription_id
+        if provider:
+            self.payment_provider = provider
+
         self.save()
         return True
 
@@ -232,4 +284,5 @@ class TradeHistory(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.trade_type} at {self.created_at}"
+
 

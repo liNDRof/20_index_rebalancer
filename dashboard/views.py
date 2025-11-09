@@ -68,11 +68,11 @@ def get_or_create_session(user):
 
 
 def create_user_trader(user):
-    """Create trader instance with user's credentials"""
+    """Create trader instance with user's configuration"""
     profile = get_or_create_profile(user)
 
     if not profile.has_binance_credentials():
-        raise ValueError("Please configure your Binance API credentials in your profile first.")
+        raise ValueError("Please configure your Binance API credentials")
 
     api_key, api_secret = profile.get_binance_credentials()
 
@@ -80,7 +80,10 @@ def create_user_trader(user):
         binance_api_key=api_key,
         binance_api_secret=api_secret,
         cmc_api_key=profile.cmc_api_key,
-        update_interval=profile.default_interval
+        update_interval=profile.default_interval,
+        index_type=profile.cmc_index_type,  # NEW
+        min_trade_threshold=float(profile.min_trade_threshold),  # NEW
+        auto_convert_dust=profile.auto_convert_dust  # NEW
     )
 
     return trader
@@ -1038,3 +1041,104 @@ def handle_payment_failed(invoice):
         # Optionally send notification to user
     except UserProfile.DoesNotExist:
         logger.error(f"No user found for customer: {customer_id}")
+
+
+@login_required
+def coin_index_settings_view(request):
+    """Coin Index Settings Page - CMC20 and CMC100"""
+    profile = get_or_create_profile(request.user)
+
+    if request.method == 'POST':
+        index_type = request.POST.get('index_type')
+        index_base = request.POST.get('index_base')
+
+        # Validate index_type based on base
+        cmc20_options = ['top2', 'top5', 'top10', 'top20']
+        cmc100_options = ['top30', 'top40', 'top50', 'top60', 'top70', 'top80', 'top90', 'top100']
+        all_options = cmc20_options + cmc100_options
+
+        if index_type not in all_options:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'Invalid index type'
+            }, status=400)
+
+        if index_base not in ['cmc20', 'cmc100']:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'Invalid index base'
+            }, status=400)
+
+        # Validate that index_type matches index_base
+        if index_base == 'cmc20' and index_type not in cmc20_options:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'Index type does not match CMC20 base'
+            }, status=400)
+
+        if index_base == 'cmc100' and index_type not in cmc100_options:
+            return JsonResponse({
+                'status': 'error',
+                'error': 'Index type does not match CMC100 base'
+            }, status=400)
+
+        # Save settings
+        profile.index_type = index_type
+        profile.index_base = index_base
+        profile.save()
+
+        messages.success(request,
+                         _(f'Index settings updated to {index_base.upper()} - {index_type}! New distribution will be applied on next rebalancing.'))
+        logger.info(f"[{request.user.username}] Updated index: base={index_base}, type={index_type}")
+
+        return JsonResponse({
+            'status': 'ok',
+            'index_type': index_type,
+            'index_base': index_base,
+            'message': 'Settings saved successfully'
+        })
+
+    return render(request, 'dashboard/coin_index_settings.html', {
+        'profile': profile,
+        'current_index': profile.index_type,
+        'current_base': profile.index_base
+    })
+
+
+@login_required
+def get_index_settings_api(request):
+    """API endpoint to get current index settings"""
+    profile = get_or_create_profile(request.user)
+
+    return JsonResponse({
+        'status': 'ok',
+        'index_type': profile.index_type
+    })
+
+
+@login_required
+def trading_settings_view(request):
+    """Trading configuration page"""
+    profile = get_or_create_profile(request.user)
+    message = None
+    error = None
+
+    if request.method == 'POST':
+        try:
+            profile.cmc_index_type = request.POST.get('cmc_index_type', 'CMC20')
+            profile.min_trade_threshold = float(request.POST.get('min_trade_threshold', 5.0))
+            profile.auto_convert_dust = request.POST.get('auto_convert_dust') == 'on'
+            profile.save()
+
+            message = _('Trading settings updated successfully')
+            logger.info(f"[{request.user.username}] Updated trading settings: {profile.cmc_index_type}")
+
+        except Exception as e:
+            error = f"Error: {str(e)}"
+            logger.error(f"[{request.user.username}] Error updating trading settings: {e}")
+
+    return render(request, 'dashboard/settings.html', {
+        'profile': profile,
+        'message': message,
+        'error': error
+    })
