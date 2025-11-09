@@ -31,11 +31,11 @@ DEBUG = True
 ALLOWED_HOSTS = ['CryptoIndex.pythonanywhere.com', '127.0.0.1', 'localhost']
 
 STATIC_URL = '/static/'
-STATIC_ROOT = '/home/CryptoIndex/20_index_rebalancer/crypto_trader/staticfiles'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),  # если у вас есть папка static в корне проекта
-]
+# STATICFILES_DIRS is not needed - apps have their own static directories
+# STATICFILES_DIRS = [
+#     os.path.join(BASE_DIR, 'static'),
+# ]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = '/home/CryptoIndex/20_index_rebalancer/media'
