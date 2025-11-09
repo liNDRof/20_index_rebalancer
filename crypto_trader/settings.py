@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from decouple import config
+import os
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -26,9 +28,17 @@ SECRET_KEY = 'django-insecure-k#1*+sx!!*lvl9v!39lvr2661kmojy)7u)^c7&a6hs_u_y-6e_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['CryptoIndex.pythonanywhere.com', 'localhost']
 
+STATIC_URL = '/static/'
+STATIC_ROOT = '/home/CryptoIndex/20_index_rebalancer/crypto_trader/staticfiles'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),  # если у вас есть папка static в корне проекта
+]
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = '/home/CryptoIndex/20_index_rebalancer/media'
 # Application definition
 
 INSTALLED_APPS = [
