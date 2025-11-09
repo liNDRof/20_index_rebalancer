@@ -28,7 +28,7 @@ SECRET_KEY = 'django-insecure-k#1*+sx!!*lvl9v!39lvr2661kmojy)7u)^c7&a6hs_u_y-6e_
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['CryptoIndex.pythonanywhere.com', 'localhost']
+ALLOWED_HOSTS = ['CryptoIndex.pythonanywhere.com', '127.0.0.1:8000']
 
 STATIC_URL = '/static/'
 STATIC_ROOT = '/home/CryptoIndex/20_index_rebalancer/crypto_trader/staticfiles'
