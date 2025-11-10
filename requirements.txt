@@ -1,8 +1,8 @@
-Django>=5.0
-python-binance
-requests
-python-dotenv
-cryptography
-
-stripe>=8.0.0
-python-decouple
+Django==4.2.25
+python-binance==1.0.19
+requests==2.31.0
+python-dotenv==1.0.0
+cryptography==41.0.7
+stripe==8.0.0
+python-decouple==3.8
+pytz==2023.3
