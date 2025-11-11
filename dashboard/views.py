@@ -76,6 +76,10 @@ def create_user_trader(user):
 
     api_key, api_secret = profile.get_binance_credentials()
 
+    # Validate that credentials were successfully decrypted and are not None
+    if not api_key or not api_secret:
+        raise ValueError("Failed to retrieve Binance API credentials. Please reconfigure them in your profile settings.")
+
     trader = BTCETH_CMC20_Trader(
         binance_api_key=api_key,
         binance_api_secret=api_secret,
