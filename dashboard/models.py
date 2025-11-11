@@ -130,7 +130,8 @@ class UserProfile(models.Model):
 
     def has_binance_credentials(self):
         """Check if user has configured Binance credentials"""
-        return bool(self.binance_api_key_encrypted and self.binance_api_secret_encrypted)
+        api_key, api_secret = self.get_binance_credentials()
+        return bool(api_key and api_secret)
 
     def get_index_display(self):
         """Get human-readable index configuration"""
