@@ -571,6 +571,107 @@ class BTCETH_CMC20_Trader:
         finally:
             trade_logger.info(f"{'='*60}")
 
+    def can_place_market_order(self, pair: str, quantity: float, value: float) -> tuple:
+        """
+        Check if market order can be placed for given pair
+
+        Args:
+            pair: Trading pair (e.g., "BTCUSDC")
+            quantity: Amount to trade
+            value: Value in quote currency (USD)
+
+        Returns:
+            tuple: (can_place: bool, reason: str, details: dict)
+        """
+        try:
+            # Get symbol info from Binance
+            symbol_info = self.client.get_symbol_info(pair)
+
+            if not symbol_info:
+                return False, f"Symbol {pair} not found", {}
+
+            # Check if symbol is trading
+            if symbol_info['status'] != 'TRADING':
+                return False, f"Symbol {pair} not trading (status: {symbol_info['status']})", {}
+
+            # Get filters
+            filters = {f['filterType']: f for f in symbol_info['filters']}
+
+            # Check LOT_SIZE filter (quantity constraints)
+            if 'LOT_SIZE' in filters:
+                lot_filter = filters['LOT_SIZE']
+                min_qty = float(lot_filter['minQty'])
+                max_qty = float(lot_filter['maxQty'])
+                step_size = float(lot_filter['stepSize'])
+
+                if quantity < min_qty:
+                    return False, f"Quantity {quantity} below minimum {min_qty}", {
+                        'min_qty': min_qty,
+                        'max_qty': max_qty,
+                        'step_size': step_size
+                    }
+
+                if quantity > max_qty:
+                    return False, f"Quantity {quantity} above maximum {max_qty}", {
+                        'min_qty': min_qty,
+                        'max_qty': max_qty,
+                        'step_size': step_size
+                    }
+
+            # Check MIN_NOTIONAL filter (minimum order value)
+            if 'MIN_NOTIONAL' in filters:
+                min_notional = float(filters['MIN_NOTIONAL']['minNotional'])
+
+                if value < min_notional:
+                    return False, f"Order value ${value:.2f} below minimum ${min_notional:.2f}", {
+                        'min_notional': min_notional,
+                        'order_value': value
+                    }
+
+            # Check NOTIONAL filter (alternative to MIN_NOTIONAL)
+            if 'NOTIONAL' in filters:
+                min_notional = float(filters['NOTIONAL']['minNotional'])
+
+                if value < min_notional:
+                    return False, f"Order value ${value:.2f} below minimum ${min_notional:.2f}", {
+                        'min_notional': min_notional,
+                        'order_value': value
+                    }
+
+            # Check MARKET_LOT_SIZE if exists
+            if 'MARKET_LOT_SIZE' in filters:
+                market_filter = filters['MARKET_LOT_SIZE']
+                min_qty = float(market_filter['minQty'])
+                max_qty = float(market_filter['maxQty'])
+
+                if quantity < min_qty:
+                    return False, f"Market order quantity {quantity} below minimum {min_qty}", {
+                        'market_min_qty': min_qty,
+                        'market_max_qty': max_qty
+                    }
+
+                if quantity > max_qty:
+                    return False, f"Market order quantity {quantity} above maximum {max_qty}", {
+                        'market_min_qty': min_qty,
+                        'market_max_qty': max_qty
+                    }
+
+            # All checks passed
+            return True, "OK", {
+                'pair': pair,
+                'quantity': quantity,
+                'value': value
+            }
+
+        except BinanceAPIException as e:
+            error_logger.error(f"Binance API error checking {pair}: {e}")
+            return False, f"API error: {str(e)}", {}
+
+        except Exception as e:
+            error_logger.error(f"Error checking {pair}: {e}")
+            error_logger.error(traceback.format_exc())
+            return False, f"Unknown error: {str(e)}", {}
+
     def calculate_rebalancing_orders(self, current_balances: dict, target_allocation: dict,
                                      total_portfolio_value: float) -> dict:
         """
