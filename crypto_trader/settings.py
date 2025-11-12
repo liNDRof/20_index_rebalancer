@@ -28,7 +28,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-k#1*+sx!!*lvl9v!39lvr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = ['CryptoIndex.pythonanywhere.com', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['CryptoIndex.pythonanywhere.com', '127.0.0.1', 'localhost','CryptoCurrencyIndex.eu.pythonanywhere.com']
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')

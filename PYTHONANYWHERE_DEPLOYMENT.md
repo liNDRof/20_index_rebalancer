@@ -1,254 +1,387 @@
-# Semi-Automated PythonAnywhere Deployment Guide
+# PythonAnywhere Deployment Guide
 
-This guide will help you deploy your Django application to PythonAnywhere with **semi-automation**.
+## 🚀 Your App Now Works for EVERYONE!
 
-## Why "Semi-Automated"?
-
-While I've provided automation scripts, certain steps still require your manual intervention because:
-1. Security: You need to provide credentials securely
-2. Initial setup: Some one-time configurations need manual verification
-3. API limitations: PythonAnywhere's API doesn't expose all features
-
-## Prerequisites
-
-✅ PythonAnywhere account (Hacker plan or higher for SSH/custom domains)
-✅ GitHub repository with your code
-✅ PythonAnywhere API token
-✅ Basic command line knowledge
+Your crypto index rebalancer now supports:
+- 🇺🇸 **US users** via Binance.US
+- 🌍 **International users** via Binance.com
+- 🧪 **Testnet** for development
+- 🔒 **Proxy** for advanced users
 
 ---
 
-## Method 1: Using the Automated Deployment Script (Recommended)
+## Step-by-Step Deployment on PythonAnywhere
 
-### Step 1: Get Your PythonAnywhere API Token
+### Step 1: Upload Your Code
 
-1. Log into PythonAnywhere
-2. Go to: **Account** → **API Token** tab
-3. Click **"Create a new API token"**
-4. Copy the token (you'll need it in the next step)
+```bash
+# On PythonAnywhere Bash console:
+cd ~
+git clone <your-repo-url> 20_index_rebalancer
+# OR upload files manually via Files tab
+```
 
-### Step 2: Configure Your Deployment
+### Step 2: Create Virtual Environment
 
-1. **Copy the environment file:**
-   ```bash
-   cp .env.pythonanywhere.example .env.pythonanywhere
-   ```
-
-2. **Edit `.env.pythonanywhere`** with your actual values:
-   ```bash
-   nano .env.pythonanywhere
-   ```
-
-   Fill in:
-   - `PYTHONANYWHERE_USERNAME`: Your PythonAnywhere username
-   - `PYTHONANYWHERE_API_TOKEN`: The token you just created
-   - `PYTHONANYWHERE_DOMAIN`: Your domain (e.g., `username.pythonanywhere.com`)
-   - `GITHUB_REPO_URL`: Your GitHub repository URL
+```bash
+cd ~/20_index_rebalancer
+python3 -m venv venv
+source venv/bin/activate
+```
 
 ### Step 3: Install Dependencies
 
 ```bash
-pip install requests python-dotenv
+pip install --upgrade pip
+pip install django python-binance requests python-dotenv pysocks cryptography
 ```
 
-### Step 4: Run the Deployment Script
+**Important:** Install `pysocks` for proxy support!
+
+### Step 4: Configure Environment Variables
+
+Create `.env` file in your project root:
 
 ```bash
-python deploy_to_pythonanywhere.py
+nano ~/20_index_rebalancer/.env
 ```
 
-The script will:
-- ✓ Create/update your webapp
-- ✓ Clone your code from GitHub
-- ✓ Set up virtual environment
-- ✓ Install dependencies
-- ✓ Run migrations
-- ✓ Collect static files
-- ✓ Configure and reload your app
+Add:
+```env
+SECRET_KEY=your-django-secret-key-here
+DEBUG=False
+ALLOWED_HOSTS=your-username.pythonanywhere.com
+DATABASE_URL=sqlite:///db.sqlite3
 
-### Step 5: Manual Configuration (Required)
+# Optional - if you want default values
+BINANCE_API_KEY=
+BINANCE_API_SECRET=
+CMC_API_KEY=
+```
 
-Even with the script, you need to **manually** configure the WSGI file:
+Save with `Ctrl+X`, then `Y`, then `Enter`.
 
-1. Go to PythonAnywhere **Web** tab
-2. Click on your webapp
-3. Click the **WSGI configuration file** link
-4. Replace the contents with:
+### Step 5: Run Migrations
+
+```bash
+source ~/20_index_rebalancer/venv/bin/activate
+cd ~/20_index_rebalancer
+python manage.py migrate
+```
+
+You should see:
+```
+Applying dashboard.0006_userprofile_proxy_host_and_more... OK
+Applying dashboard.0007_userprofile_binance_exchange... OK
+```
+
+### Step 6: Create Superuser
+
+```bash
+python manage.py createsuperuser
+```
+
+Follow prompts to create your admin account.
+
+### Step 7: Collect Static Files
+
+```bash
+python manage.py collectstatic --noinput
+```
+
+### Step 8: Configure Web App on PythonAnywhere
+
+1. Go to **Web** tab
+2. Click **Add a new web app**
+3. Choose **Manual configuration** (not Django wizard)
+4. Choose **Python 3.10** (or your Python version)
+
+#### Configure Source Code:
+
+- **Source code**: `/home/your-username/20_index_rebalancer`
+- **Working directory**: `/home/your-username/20_index_rebalancer`
+
+#### Configure Virtualenv:
+
+- **Virtualenv**: `/home/your-username/20_index_rebalancer/venv`
+
+#### Configure WSGI File:
+
+Click on the WSGI configuration file link and replace contents with:
 
 ```python
 import os
 import sys
 
 # Add your project directory to the sys.path
-project_home = '/home/YOUR_USERNAME/20_index_rebalancer'
-if project_home not in sys.path:
-    sys.path.insert(0, project_home)
+path = '/home/your-username/20_index_rebalancer'
+if path not in sys.path:
+    sys.path.insert(0, path)
 
-# Set environment variables
+# Set environment variable for Django settings
 os.environ['DJANGO_SETTINGS_MODULE'] = 'crypto_trader.settings'
 
-# Load environment variables from .env file
-from pathlib import Path
-env_file = Path(project_home) / '.env'
-if env_file.exists():
-    from dotenv import load_dotenv
-    load_dotenv(env_file)
+# Activate virtualenv
+activate_this = '/home/your-username/20_index_rebalancer/venv/bin/activate_this.py'
+# Note: activate_this.py may not exist in newer Python versions, so check first
+try:
+    with open(activate_this) as f:
+        exec(f.read(), {'__file__': activate_this})
+except FileNotFoundError:
+    pass
 
 # Import Django WSGI application
 from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application()
 ```
 
-5. Replace `YOUR_USERNAME` with your actual username
-6. Click **Save**
-7. Click **Reload** button at the top
+**Replace `your-username` with your actual PythonAnywhere username!**
+
+#### Configure Static Files:
+
+In the **Static files** section, add:
+
+| URL | Directory |
+|-----|-----------|
+| `/static/` | `/home/your-username/20_index_rebalancer/staticfiles` |
+| `/media/` | `/home/your-username/20_index_rebalancer/media` |
+
+### Step 9: Reload Web App
+
+Click the green **Reload** button at the top.
 
 ---
 
-## Method 2: Manual Deployment (Full Control)
+## 🌍 Configure for Your Location
 
-If you prefer full manual control, follow the guide in `DEPLOYMENT_GUIDE.md`.
+### Option A: US Resident on ANY PythonAnywhere Cluster ✅
+
+1. Visit `https://your-username.pythonanywhere.com`
+2. Log in with your superuser account
+3. Go to **Profile**
+4. Add your **Binance.US API keys** (from https://www.binance.us/)
+5. Go to **Trading Settings**
+6. Select **"🇺🇸 Binance.US (United States only)"**
+7. Save settings
+8. Done! ✅
+
+**No proxy needed! Works on both US and EU clusters!**
 
 ---
 
-## Post-Deployment Checklist
+### Option B: International User on EU Cluster (eu.pythonanywhere.com) ✅
 
-After deployment (automated or manual), verify:
+1. Visit `https://your-username.eu.pythonanywhere.com`
+2. Log in
+3. Go to **Profile**
+4. Add your **Binance.com API keys**
+5. Go to **Trading Settings**
+6. Select **"🌍 Binance.com (International)"**
+7. Save settings
+8. Done! ✅
 
-- [ ] Navigate to your site URL - does it load?
-- [ ] Test the admin panel: `https://yourdomain.com/admin/`
-- [ ] Check the **Logs** section in PythonAnywhere Web tab for errors
-- [ ] Test key functionality of your application
+**No proxy needed!**
 
 ---
 
-## Updating Your Deployed Application
+### Option C: International User on US Cluster (www.pythonanywhere.com)
 
-For subsequent updates after initial deployment:
+#### Recommended: Migrate to EU Cluster
 
-### Using the script:
+1. Email: **support@pythonanywhere.com**
+2. Subject: "Request to migrate to EU cluster"
+3. Body:
+   ```
+   Hi,
+
+   I would like to migrate my PythonAnywhere account to the EU cluster
+   (eu.pythonanywhere.com) because my application needs to access Binance.com
+   API which blocks US IP addresses.
+
+   Username: your-username
+
+   Thank you!
+   ```
+4. Wait for migration (usually a few hours)
+5. Follow **Option B** above
+
+#### Alternative: Use Proxy (Advanced)
+
+If you can't migrate to EU cluster:
+
+1. **Set up a proxy server** (see BINANCE_GEO_RESTRICTION_FIX.md)
+2. In **Trading Settings**:
+   - Select **"🌍 Binance.com (International)"**
+   - Check **"🔒 Use SOCKS5 Proxy"**
+   - Enter proxy details
+   - Save settings
+
+---
+
+### Option D: Testing/Development (Any Location) 🧪
+
+1. Go to https://testnet.binance.vision/
+2. Log in with GitHub
+3. Generate testnet API keys
+4. In your app:
+   - Go to **Profile** → Enter **testnet API keys**
+   - Go to **Trading Settings** → Check **"🧪 Use Binance Testnet"**
+   - Save settings
+5. Test with fake money!
+
+---
+
+## 🔍 How to Check Your PythonAnywhere Cluster
+
+Run in PythonAnywhere Bash console:
+
 ```bash
-python deploy_to_pythonanywhere.py
+# Check your location
+curl ipinfo.io
+
+# Test Binance.com access
+curl https://api.binance.com/api/v3/ping
+
+# Test Binance.US access
+curl https://api.binance.us/api/v3/ping
 ```
 
-### Manually:
-1. SSH into PythonAnywhere or use Bash console
-2. Run:
-   ```bash
-   cd ~/20_index_rebalancer
-   git pull
-   source venv/bin/activate
-   pip install -r requirements.txt
-   python manage.py migrate
-   python manage.py collectstatic --noinput
-   ```
-3. Click **Reload** in the Web tab
+**If Binance.com is blocked:**
+- You're on US cluster
+- Use Binance.US (if US resident) OR migrate to EU cluster
 
 ---
 
-## Troubleshooting
+## 🐛 Troubleshooting
 
-### Error: "Invalid API token"
-- Regenerate your API token on PythonAnywhere
-- Update `.env.pythonanywhere`
+### "Service unavailable from a restricted location"
 
-### Error: "ModuleNotFoundError"
-- Check that virtualenv path is correctly set in Web tab
-- Ensure all requirements are installed
+**For US users:**
+- ✅ Make sure you selected "Binance.US" in Trading Settings
+- ✅ Make sure you're using Binance.US API keys (not Binance.com keys)
+
+**For international users:**
+- ✅ Make sure you selected "Binance.com" in Trading Settings
+- ✅ Check your PythonAnywhere cluster location
+- ✅ If on US cluster, migrate to EU or use proxy
+
+### Web app not loading
+
+```bash
+# Check error logs in PythonAnywhere Web tab
+# Look at Error log and Server log
+
+# Common issues:
+# 1. Wrong virtualenv path
+# 2. Wrong WSGI configuration
+# 3. Missing dependencies
+# 4. Database not migrated
+```
 
 ### Static files not loading
-- Verify static files mapping in Web tab
-- Check that `STATIC_ROOT` in settings.py matches the path
-
-### Database errors
-- Ensure migrations have run: `python manage.py migrate`
-- Check database credentials in `.env`
-
-### "DisallowedHost" error
-- Add your domain to `ALLOWED_HOSTS` in `settings.py`
-
----
-
-## Environment Variables on PythonAnywhere
-
-Create a `.env` file in your project directory on PythonAnywhere:
 
 ```bash
-# In PythonAnywhere Bash console:
-cd ~/20_index_rebalancer
-nano .env
+# Make sure you ran collectstatic
+python manage.py collectstatic --noinput
+
+# Check static files mapping in Web tab
+# URL: /static/
+# Directory: /home/your-username/20_index_rebalancer/staticfiles
 ```
 
-Add your environment variables:
-```
-SECRET_KEY=your-secret-key-here
-DEBUG=False
-ALLOWED_HOSTS=yourusername.pythonanywhere.com
+### "No module named 'binance'"
 
-# Database
-DATABASE_URL=your-database-url
-
-# Stripe
-STRIPE_PUBLISHABLE_KEY=pk_live_...
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-
-# Add other variables as needed
+```bash
+# Install in correct virtualenv
+source ~/20_index_rebalancer/venv/bin/activate
+pip install python-binance pysocks
 ```
 
 ---
 
-## Security Best Practices
+## 📊 Running Background Tasks (Scheduled Rebalancing)
 
-1. ✅ **Never commit** `.env` or `.env.pythonanywhere` to Git
-2. ✅ Use **strong, unique** SECRET_KEY
-3. ✅ Set `DEBUG=False` in production
-4. ✅ Use HTTPS (comes free with PythonAnywhere)
-5. ✅ Regularly update dependencies
-6. ✅ Keep API tokens secure
+PythonAnywhere doesn't allow long-running processes in web apps. For scheduled rebalancing:
 
----
+### Option 1: Scheduled Tasks (Paid accounts only)
 
-## Cost Considerations
+1. Go to **Tasks** tab
+2. Create new scheduled task
+3. Command: `/home/your-username/20_index_rebalancer/venv/bin/python /home/your-username/20_index_rebalancer/manage.py your_rebalance_command`
+4. Set schedule (daily, hourly, etc.)
 
-- **Free tier**: Limited, HTTP only, no SSH
-- **Hacker ($5/month)**:
-  - HTTPS
-  - SSH access
-  - Custom domains
-  - More CPU time
-- **Web Dev ($12/month)**: Increased resources
+### Option 2: Manual Rebalancing
 
-**Recommendation**: Start with Hacker plan for production apps.
+- Use the web interface to manually trigger rebalancing
+- This works on free accounts
 
 ---
 
-## Need Help?
+## 🔒 Security Best Practices
 
-- PythonAnywhere Forums: https://www.pythonanywhere.com/forums/
-- PythonAnywhere Help: https://help.pythonanywhere.com/
-- Check error logs in Web tab → Logs section
+1. **Never commit `.env` to Git**
+   - Add `.env` to `.gitignore`
 
----
+2. **Use environment variables for secrets**
+   - API keys stored encrypted in database
+   - Django SECRET_KEY in `.env`
 
-## What's Automated vs. Manual
+3. **Set DEBUG=False in production**
+   - Edit `.env`: `DEBUG=False`
 
-### ✅ Automated (via script):
-- Creating webapp
-- Cloning/updating code
-- Setting up virtualenv
-- Installing dependencies
-- Running migrations
-- Collecting static files
-- Reloading webapp
+4. **Restrict API key permissions on Binance**
+   - Only enable: Read Info, Spot & Margin Trading
+   - Disable: Withdrawals
 
-### ⚠️ Still Manual:
-- Getting API token
-- Editing WSGI configuration file
-- Setting environment variables
-- Initial domain/SSL setup
-- Stripe webhook configuration
+5. **Use IP whitelist on Binance API keys (if possible)**
+   - Find PythonAnywhere IP: `curl ifconfig.me`
+   - Add to Binance API key restrictions
 
 ---
 
-Good luck with your deployment! 🚀
+## 🎉 You're Done!
+
+Your crypto index rebalancer is now live and works for users worldwide!
+
+**Test it:**
+1. Visit `https://your-username.pythonanywhere.com` (or `.eu.pythonanywhere.com`)
+2. Log in
+3. Configure your settings
+4. Try "Refresh Portfolio"
+5. If successful, you're all set! 🚀
+
+---
+
+## 📚 Related Documentation
+
+- Full solution guide: `BINANCE_GEO_RESTRICTION_FIX.md`
+- Django commands: `SWEEP.md`
+- PythonAnywhere help: https://help.pythonanywhere.com/
+
+---
+
+## 🆘 Need Help?
+
+### Check the server location:
+```bash
+curl ipinfo.io
+```
+
+### Check if Binance works:
+```bash
+# For Binance.com
+curl https://api.binance.com/api/v3/ping
+
+# For Binance.US
+curl https://api.binance.us/api/v3/ping
+
+# For Testnet
+curl https://testnet.binance.vision/api/v3/ping
+```
+
+### View Django logs:
+```bash
+tail -f ~/20_index_rebalancer/logs/*.log
+```
+
+If you need more help, check the PythonAnywhere forums or contact their support!

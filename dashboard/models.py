@@ -90,6 +90,56 @@ class UserProfile(models.Model):
         help_text="Minimum value for market orders (USD)"
     )
 
+    # Binance Connection Settings - NEW
+    EXCHANGE_CHOICES = [
+        ('com', 'Binance.com (International)'),
+        ('us', 'Binance.US (United States only)'),
+    ]
+
+    binance_exchange = models.CharField(
+        max_length=10,
+        choices=EXCHANGE_CHOICES,
+        default='com',
+        help_text="Choose your Binance exchange based on your location"
+    )
+
+    use_testnet = models.BooleanField(
+        default=False,
+        help_text="Use Binance Testnet (testnet.binance.vision) - Recommended for testing"
+    )
+
+    # Proxy Settings for bypassing geographic restrictions
+    use_proxy = models.BooleanField(
+        default=False,
+        help_text="Use SOCKS5 proxy to bypass geographic restrictions"
+    )
+
+    proxy_host = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Proxy server address (e.g., proxy.example.com)"
+    )
+
+    proxy_port = models.IntegerField(
+        blank=True,
+        null=True,
+        help_text="Proxy server port (e.g., 1080)"
+    )
+
+    proxy_user = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Proxy username (if authentication required)"
+    )
+
+    proxy_pass_encrypted = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Encrypted proxy password"
+    )
+
     def __str__(self):
         return f"Profile: {self.user.username}"
 
@@ -132,6 +182,45 @@ class UserProfile(models.Model):
         """Check if user has configured Binance credentials"""
         api_key, api_secret = self.get_binance_credentials()
         return bool(api_key and api_secret)
+
+    def set_proxy_password(self, password):
+        """Encrypt and store proxy password"""
+        if not password:
+            self.proxy_pass_encrypted = None
+            return
+
+        cipher = Fernet(self.get_encryption_key())
+        self.proxy_pass_encrypted = cipher.encrypt(password.encode()).decode()
+
+    def get_proxy_password(self):
+        """Decrypt and return proxy password"""
+        if not self.proxy_pass_encrypted:
+            return None
+
+        try:
+            cipher = Fernet(self.get_encryption_key())
+            return cipher.decrypt(self.proxy_pass_encrypted.encode()).decode()
+        except Exception as e:
+            print(f"Error decrypting proxy password: {e}")
+            return None
+
+    def get_proxy_config(self):
+        """Get complete proxy configuration"""
+        if not self.use_proxy or not self.proxy_host or not self.proxy_port:
+            return None
+
+        config = {
+            'host': self.proxy_host,
+            'port': self.proxy_port,
+        }
+
+        if self.proxy_user:
+            config['user'] = self.proxy_user
+            password = self.get_proxy_password()
+            if password:
+                config['password'] = password
+
+        return config
 
     def get_index_display(self):
         """Get human-readable index configuration"""

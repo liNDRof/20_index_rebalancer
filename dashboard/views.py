@@ -80,6 +80,9 @@ def create_user_trader(user):
     if not api_key or not api_secret:
         raise ValueError("Failed to retrieve Binance API credentials. Please reconfigure them in your profile settings.")
 
+    # Get proxy configuration if enabled
+    proxy_config = profile.get_proxy_config()
+
     trader = BTCETH_CMC20_Trader(
         binance_api_key=api_key,
         binance_api_secret=api_secret,
@@ -87,7 +90,10 @@ def create_user_trader(user):
         update_interval=profile.default_interval,
         index_type=profile.cmc_index_type,  # NEW
         min_trade_threshold=float(profile.min_trade_threshold),  # NEW
-        auto_convert_dust=profile.auto_convert_dust  # NEW
+        auto_convert_dust=profile.auto_convert_dust,  # NEW
+        use_testnet=profile.use_testnet,  # NEW - Testnet support
+        proxy_config=proxy_config,  # NEW - Proxy support
+        binance_tld=profile.binance_exchange  # NEW - Exchange selection (com/us)
     )
 
     return trader
@@ -1132,10 +1138,32 @@ def trading_settings_view(request):
             profile.cmc_index_type = request.POST.get('cmc_index_type', 'CMC20')
             profile.min_trade_threshold = float(request.POST.get('min_trade_threshold', 5.0))
             profile.auto_convert_dust = request.POST.get('auto_convert_dust') == 'on'
+
+            # NEW: Handle exchange selection, testnet and proxy settings
+            profile.binance_exchange = request.POST.get('binance_exchange', 'com')
+            profile.use_testnet = request.POST.get('use_testnet') == 'on'
+            profile.use_proxy = request.POST.get('use_proxy') == 'on'
+
+            # Proxy configuration
+            if profile.use_proxy:
+                profile.proxy_host = request.POST.get('proxy_host', '').strip()
+                profile.proxy_port = int(request.POST.get('proxy_port', 0)) if request.POST.get('proxy_port') else None
+                profile.proxy_user = request.POST.get('proxy_user', '').strip() or None
+
+                proxy_password = request.POST.get('proxy_password', '').strip()
+                if proxy_password:
+                    profile.set_proxy_password(proxy_password)
+            else:
+                # Clear proxy settings if disabled
+                profile.proxy_host = None
+                profile.proxy_port = None
+                profile.proxy_user = None
+                profile.proxy_pass_encrypted = None
+
             profile.save()
 
             message = _('Trading settings updated successfully')
-            logger.info(f"[{request.user.username}] Updated trading settings: {profile.cmc_index_type}")
+            logger.info(f"[{request.user.username}] Updated trading settings: {profile.cmc_index_type}, testnet={profile.use_testnet}, proxy={profile.use_proxy}")
 
         except Exception as e:
             error = f"Error: {str(e)}"

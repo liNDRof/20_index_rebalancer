@@ -25,13 +25,17 @@ class BTCETH_CMC20_Trader:
     def __init__(self, binance_api_key=None, binance_api_secret=None,
                  cmc_api_key=None, update_interval=None,
                  index_type='CMC20', min_trade_threshold=5.0,
-                 auto_convert_dust=True):
+                 auto_convert_dust=True, use_testnet=False,
+                 proxy_config=None, binance_tld='com'):
         """
         Initialize trader with index configuration
 
         Args:
             index_type: 'top2', 'top5', ..., 'top100'
             index_base: 'cmc20' or 'cmc100'
+            use_testnet: Use Binance Testnet instead of production
+            proxy_config: Dict with proxy settings {'host', 'port', 'user', 'password'}
+            binance_tld: 'com' for Binance.com (international) or 'us' for Binance.US
         """
         debug_logger.info("Initializing BTCETH_CMC20_Trader...")
 
@@ -42,7 +46,37 @@ class BTCETH_CMC20_Trader:
         if not self.binance_api_key or not self.binance_api_secret:
             raise ValueError("Binance API credentials required")
 
-        self.client = Client(self.binance_api_key, self.binance_api_secret)
+        # Configure client options based on testnet and proxy settings
+        client_options = {}
+
+        # Set up proxy if provided
+        if proxy_config and proxy_config.get('host') and proxy_config.get('port'):
+            proxy_url = f"socks5://{proxy_config['host']}:{proxy_config['port']}"
+
+            # Add authentication if provided
+            if proxy_config.get('user') and proxy_config.get('password'):
+                proxy_url = f"socks5://{proxy_config['user']}:{proxy_config['password']}@{proxy_config['host']}:{proxy_config['port']}"
+
+            client_options['proxies'] = {
+                'http': proxy_url,
+                'https': proxy_url
+            }
+            debug_logger.info(f"Using SOCKS5 proxy: {proxy_config['host']}:{proxy_config['port']}")
+
+        # Initialize Binance client with testnet flag, TLD, and proxy
+        self.client = Client(
+            self.binance_api_key,
+            self.binance_api_secret,
+            testnet=use_testnet,
+            tld=binance_tld if not use_testnet else 'com',  # Testnet only works with .com
+            requests_params=client_options if client_options else None
+        )
+
+        if use_testnet:
+            debug_logger.info("Using Binance Testnet (testnet.binance.vision)")
+        else:
+            exchange_name = "Binance.US" if binance_tld == 'us' else "Binance.com"
+            debug_logger.info(f"Using {exchange_name} Production")
 
         try:
             server_time = self.client.get_server_time()

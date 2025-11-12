@@ -240,6 +240,131 @@ SETTINGS_PAGE_HTML = '''
   </div>
 
   <div class="settings-section">
+    <h2>🌐 {% trans "Binance Connection Settings" %}</h2>
+
+    <div class="info-box" style="background: rgba(239, 68, 68, 0.1); border-left-color: #ef4444;">
+      <p>
+        <strong>⚠️ {% trans "Important: Choose Your Exchange" %}:</strong>
+      </p>
+      <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>🇺🇸 US Residents:</strong> {% trans "You MUST use Binance.US (not Binance.com)" %}</li>
+        <li><strong>🌍 International Users:</strong> {% trans "Use Binance.com (not available in US)" %}</li>
+        <li><strong>🧪 Testing:</strong> {% trans "Use Testnet mode for risk-free development" %}</li>
+      </ul>
+    </div>
+
+    <form method="post" action="{% url 'dashboard:save_trading_settings' %}">
+      {% csrf_token %}
+
+      <div class="form-group">
+        <label>🏦 {% trans "Binance Exchange" %}:</label>
+        <select name="binance_exchange" id="binance_exchange" onchange="updateExchangeInfo()">
+          <option value="com" {% if profile.binance_exchange == 'com' %}selected{% endif %}>
+            🌍 Binance.com (International)
+          </option>
+          <option value="us" {% if profile.binance_exchange == 'us' %}selected{% endif %}>
+            🇺🇸 Binance.US (United States only)
+          </option>
+        </select>
+        <small id="exchange-info" style="color: #64748b; margin-top: 8px; display: block;">
+          <!-- Will be filled by JavaScript -->
+        </small>
+      </div>
+
+      <hr style="margin: 30px 0; border: none; border-top: 2px solid rgba(59, 130, 246, 0.2);">
+
+      <div class="form-group">
+        <label style="display: flex; align-items: center;">
+          <input type="checkbox"
+                 name="use_testnet"
+                 id="use_testnet"
+                 {% if profile.use_testnet %}checked{% endif %}>
+          <span>🧪 {% trans "Use Binance Testnet" %}</span>
+        </label>
+        <small style="color: #64748b; margin-top: 8px; display: block;">
+          {% trans "Connect to testnet.binance.vision instead of production. Requires separate testnet API keys from" %}
+          <a href="https://testnet.binance.vision/" target="_blank" style="color: #3b82f6;">testnet.binance.vision</a>
+        </small>
+      </div>
+
+      <hr style="margin: 30px 0; border: none; border-top: 2px solid rgba(59, 130, 246, 0.2);">
+
+      <div class="form-group">
+        <label style="display: flex; align-items: center;">
+          <input type="checkbox"
+                 name="use_proxy"
+                 id="use_proxy"
+                 {% if profile.use_proxy %}checked{% endif %}
+                 onchange="toggleProxyFields()">
+          <span>🔒 {% trans "Use SOCKS5 Proxy" %}</span>
+        </label>
+        <small style="color: #64748b; margin-top: 8px; display: block;">
+          {% trans "Bypass geographic restrictions by routing traffic through a proxy server in an allowed location (e.g., Europe, Asia)" %}
+        </small>
+      </div>
+
+      <div id="proxy-fields" style="{% if not profile.use_proxy %}display: none;{% endif %}">
+        <div class="form-group">
+          <label>🌍 {% trans "Proxy Host" %}:</label>
+          <input type="text"
+                 name="proxy_host"
+                 value="{{ profile.proxy_host|default:'' }}"
+                 placeholder="proxy.example.com">
+          <small style="color: #64748b; margin-top: 8px; display: block;">
+            {% trans "Proxy server address or IP" %}
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>🔌 {% trans "Proxy Port" %}:</label>
+          <input type="number"
+                 name="proxy_port"
+                 value="{{ profile.proxy_port|default:'' }}"
+                 placeholder="1080"
+                 min="1"
+                 max="65535">
+          <small style="color: #64748b; margin-top: 8px; display: block;">
+            {% trans "Proxy server port (typically 1080 for SOCKS5)" %}
+          </small>
+        </div>
+
+        <div class="form-group">
+          <label>👤 {% trans "Proxy Username (Optional)" %}:</label>
+          <input type="text"
+                 name="proxy_user"
+                 value="{{ profile.proxy_user|default:'' }}"
+                 placeholder="{% trans 'Leave empty if no authentication required' %}">
+        </div>
+
+        <div class="form-group">
+          <label>🔑 {% trans "Proxy Password (Optional)" %}:</label>
+          <input type="password"
+                 name="proxy_password"
+                 placeholder="{% trans 'Leave empty to keep current password' %}">
+          <small style="color: #64748b; margin-top: 8px; display: block;">
+            {% trans "Only enter if changing password. Stored encrypted." %}
+          </small>
+        </div>
+
+        <div class="info-box">
+          <p>
+            <strong>💡 {% trans "How to get a proxy server" %}:</strong>
+          </p>
+          <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.8;">
+            <li>{% trans "Rent a VPS in Europe/Asia and set up Dante SOCKS5 proxy" %}</li>
+            <li>{% trans "Use commercial proxy services like proxy-seller.com or similar" %}</li>
+            <li>{% trans "Ensure the proxy location is NOT in restricted regions (US, China, etc.)" %}</li>
+          </ul>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary">
+        💾 {% trans "Save Connection Settings" %}
+      </button>
+    </form>
+  </div>
+
+  <div class="settings-section">
     <h2>ℹ️ {% trans "How It Works" %}</h2>
     
     <p><strong>{% trans "Allocation Logic:" %}</strong></p>
@@ -267,4 +392,34 @@ SETTINGS_PAGE_HTML = '''
     </a>
   </div>
 </div>
+
+<script>
+function toggleProxyFields() {
+  const checkbox = document.getElementById('use_proxy');
+  const fields = document.getElementById('proxy-fields');
+  if (checkbox.checked) {
+    fields.style.display = 'block';
+  } else {
+    fields.style.display = 'none';
+  }
+}
+
+function updateExchangeInfo() {
+  const select = document.getElementById('binance_exchange');
+  const info = document.getElementById('exchange-info');
+
+  if (select.value === 'us') {
+    info.innerHTML = '🇺🇸 For US residents only. API endpoint: api.binance.us. You need separate API keys from Binance.US.';
+    info.style.color = '#ef4444';
+  } else {
+    info.innerHTML = '🌍 For international users (NOT available in US, China, Ontario/Canada, and some other regions). API endpoint: api.binance.com';
+    info.style.color = '#3b82f6';
+  }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+  updateExchangeInfo();
+});
+</script>
 {% endblock %}
