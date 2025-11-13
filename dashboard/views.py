@@ -552,8 +552,13 @@ def manual_rebalance(request):
         is_dry_run = session.dry_run_mode
         trade_logger.info(f"[{request.user.username}] Step 3: Executing rebalance...")
         trade_logger.info(f"[{request.user.username}]   - Mode: {'DRY RUN (TEST)' if is_dry_run else 'LIVE TRADING'}")
+        trade_logger.info(f"[{request.user.username}]   - Index: {profile.index_base} - {profile.index_type}")
 
-        rebalance_result = trader.execute_portfolio_rebalance(dry_run=is_dry_run)
+        rebalance_result = trader.execute_portfolio_rebalance(
+            dry_run=is_dry_run,
+            index_base=profile.index_base,
+            index_type=profile.index_type
+        )
 
         # Save result
         session.last_rebalance_result = rebalance_result if rebalance_result else {"note": "no result"}
