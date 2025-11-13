@@ -19,7 +19,7 @@ debug_logger = logging.getLogger('debug')
 
 class BTCETH_CMC20_Trader:
     """
-    Updated: Now supports both CMC20 and CMC100 indices
+    Trader that supports both CMC20 and CMC100 indices with flexible distribution
     """
 
     def __init__(self, binance_api_key=None, binance_api_secret=None,
@@ -30,8 +30,9 @@ class BTCETH_CMC20_Trader:
         Initialize trader with index configuration
 
         Args:
-            index_type: 'top2', 'top5', ..., 'top100'
-            index_base: 'cmc20' or 'cmc100'
+            index_type: 'CMC20' or 'CMC100' (base index)
+            min_trade_threshold: Minimum value for market orders (USD)
+            auto_convert_dust: Automatically convert small balances
         """
         debug_logger.info("Initializing BTCETH_CMC20_Trader...")
 
@@ -44,15 +45,17 @@ class BTCETH_CMC20_Trader:
 
         self.client = Client(self.binance_api_key, self.binance_api_secret)
 
+        # Synchronize timestamp with Binance server
         try:
             server_time = self.client.get_server_time()
             local_time = int(time.time() * 1000)
             time_offset = server_time['serverTime'] - local_time
             self.client.timestamp_offset = time_offset
+            debug_logger.info(f"Timestamp synchronized. Offset: {time_offset}ms")
         except Exception as e:
             debug_logger.warning(f"Failed to sync timestamp: {e}")
 
-            # New configuration
+        # Configuration
         self.index_type = index_type  # 'CMC20' or 'CMC100'
         self.min_trade_threshold = min_trade_threshold
         self.auto_convert_dust = auto_convert_dust
@@ -66,29 +69,6 @@ class BTCETH_CMC20_Trader:
         api_logger.info(
             f"Trader initialized: index={self.index_type}, threshold=${self.min_trade_threshold}, auto_convert={self.auto_convert_dust}")
 
-        # Synchronize timestamp with Binance server to avoid timestamp errors
-        try:
-            debug_logger.info("Synchronizing timestamp with Binance server...")
-            server_time = self.client.get_server_time()
-            local_time = int(time.time() * 1000)
-            time_offset = server_time['serverTime'] - local_time
-            self.client.timestamp_offset = time_offset
-            debug_logger.info(f"Timestamp synchronized. Offset: {time_offset}ms")
-        except Exception as e:
-            debug_logger.warning(f"Failed to synchronize timestamp: {e}. Continuing without sync.")
-
-        debug_logger.info("Binance client created successfully")
-
-        # CoinMarketCap API - use provided or fall back to .env
-        self.cmc_api_key = cmc_api_key or os.getenv("COINMARKETCAP_API_KEY")
-        self.cmc_api_url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest"
-        self.update_interval = update_interval or int(os.getenv("CMC_INDEX_UPDATE_INTERVAL", 3600))
-
-        # Список стейблкоїнів для виключення
-        self.stablecoins = ['USDT', 'USDC', 'BUSD', 'FDUSD', 'USDe', 'DAI', 'TUSD', 'USDP', 'USDD', 'GUSD', 'PYUSD']
-
-        debug_logger.info(f"Trader initialized with update_interval={self.update_interval}s, stablecoins={len(self.stablecoins)}")
-
     def get_binance_balance(self, asset="USDC") -> float:
         """Отримує доступний баланс на Binance"""
         try:
@@ -100,15 +80,15 @@ class BTCETH_CMC20_Trader:
             print(f"❌ Помилка отримання балансу: {e}")
             return 0.0
 
-    def get_all_binance_balances(self) -> dict:
-        """Отримує всі баланси на Binance з вартістю в USDC"""
+    def get_all_binance_balances(self) -> tuple:
+        """Get all Binance balances with USDC value"""
         api_logger.info("Fetching all Binance balances...")
         try:
             account = self.client.get_account()
             balances = {}
             total_portfolio_usdc = 0.0
 
-            print("\n💼 Поточні баланси на Binance:")
+            print("\n💼 Current Binance balances:")
             print("-" * 90)
 
             for balance in account['balances']:
@@ -119,7 +99,7 @@ class BTCETH_CMC20_Trader:
                 if total > 0:
                     asset = balance['asset']
 
-                    # Розраховуємо вартість в USDC
+                    # Calculate USDC value
                     usdc_value = 0.0
                     if asset in self.stablecoins:
                         usdc_value = total
@@ -151,32 +131,34 @@ class BTCETH_CMC20_Trader:
 
                     total_portfolio_usdc += usdc_value
 
-                    print(f"{asset:6s} | Вільно: {free:12,.6f} | Заблоковано: {locked:12,.6f} | "
+                    print(f"{asset:6s} | Free: {free:12,.6f} | Locked: {locked:12,.6f} | "
                           f"≈ ${usdc_value:10,.2f} USDC")
 
             print("-" * 90)
-            print(f"{'РАЗОМ':6s} | {'':12s}   {'':12s}   {'':15s}   ≈ ${total_portfolio_usdc:10,.2f} USDC")
+            print(f"{'TOTAL':6s} | {'':12s}   {'':12s}   {'':15s}   ≈ ${total_portfolio_usdc:10,.2f} USDC")
             print("-" * 90)
 
             api_logger.info(f"Successfully fetched balances: {len(balances)} assets, total=${total_portfolio_usdc:.2f}")
-            debug_logger.debug(f"Balance details: {balances}")
             return balances, total_portfolio_usdc
 
         except BinanceAPIException as e:
             error_logger.error(f"Binance API error fetching balances: {e}")
             error_logger.error(traceback.format_exc())
-            print(f"❌ Помилка отримання балансів: {e}")
             return {}, 0.0
 
-    def get_allocation_from_cmc(self) -> dict:
+    def get_allocation_from_cmc(self, index_base='cmc20', index_type='top2') -> dict:
         """
         Get allocation based on selected index base and type
         Supports both CMC20 and CMC100
 
+        Args:
+            index_base: 'cmc20' or 'cmc100'
+            index_type: 'top2', 'top5', ..., 'top100'
+
         Returns:
             dict: Allocation data for selected coins
         """
-        api_logger.info(f"Fetching {self.index_base.upper()} allocation for {self.index_type}")
+        api_logger.info(f"Fetching {index_base.upper()} allocation for {index_type}")
 
         try:
             headers = {
@@ -185,7 +167,7 @@ class BTCETH_CMC20_Trader:
             }
 
             # Determine how many coins to fetch based on base
-            limit = 50 if self.index_base == 'cmc20' else 150
+            limit = 50 if index_base == 'cmc20' else 150
 
             params = {
                 'start': '1',
@@ -208,7 +190,7 @@ class BTCETH_CMC20_Trader:
             coins = [coin for coin in coins if coin['symbol'] not in self.stablecoins]
 
             # Determine base limit and selected count
-            if self.index_base == 'cmc20':
+            if index_base == 'cmc20':
                 base_limit = 20
                 index_map = {
                     'top2': 2, 'top5': 5, 'top10': 10, 'top20': 20
@@ -220,7 +202,7 @@ class BTCETH_CMC20_Trader:
                     'top70': 70, 'top80': 80, 'top90': 90, 'top100': 100
                 }
 
-            selected_count = index_map.get(self.index_type, 2)
+            selected_count = index_map.get(index_type, 2)
 
             # Get coins within base limit
             base_coins = coins[:base_limit]
@@ -243,9 +225,9 @@ class BTCETH_CMC20_Trader:
             allocation_data = {}
 
             print(f"\n{'=' * 80}")
-            print(f"🔍 INDEX DISTRIBUTION: {self.index_base.upper()} - {self.index_type.upper()}")
+            print(f"🔍 INDEX DISTRIBUTION: {index_base.upper()} - {index_type.upper()}")
             print(f"{'=' * 80}")
-            print(f"   📊 Total {self.index_base.upper()} market cap: ${total_market_cap:,.0f}")
+            print(f"   📊 Total {index_base.upper()} market cap: ${total_market_cap:,.0f}")
             print(f"   🎯 Selected coins: {selected_count}")
             print(f"   📦 Remaining coins in base: {len(remaining_coins)}")
             print(f"   ➗ Redistribution per coin: +{redistribution_per_coin:.4f}%")
@@ -278,13 +260,13 @@ class BTCETH_CMC20_Trader:
             print(f"   ✅ Total weight: {total_weight:.4f}% (should be ≈100%)")
             print(f"   {'=' * 76}\n")
 
-            api_logger.info(f"Successfully calculated {self.index_base.upper()} - {self.index_type} allocation")
+            api_logger.info(f"Successfully calculated {index_base.upper()} - {index_type} allocation")
             api_logger.info(f"Selected {len(allocation_data)} coins with total weight: {total_weight:.2f}%")
 
             return allocation_data
 
         except Exception as e:
-            error_logger.error(f"Error fetching {self.index_base.upper()} allocation: {e}")
+            error_logger.error(f"Error fetching {index_base.upper()} allocation: {e}")
             error_logger.error(traceback.format_exc())
             return {}
 
@@ -402,7 +384,7 @@ class BTCETH_CMC20_Trader:
         print("=" * 120 + "\n")
 
     def get_binance_price(self, symbol: str) -> float:
-        """Отримує поточну ціну токена на Binance"""
+        """Get current token price on Binance"""
         try:
             pair = f"{symbol}USDC"
             ticker = self.client.get_symbol_ticker(symbol=pair)
@@ -413,7 +395,7 @@ class BTCETH_CMC20_Trader:
                 ticker = self.client.get_symbol_ticker(symbol=pair)
                 return float(ticker['price'])
             except BinanceAPIException as e:
-                print(f"❌ Не вдалося отримати ціну {symbol}: {e}")
+                error_logger.error(f"Failed to get price for {symbol}: {e}")
                 return 0.0
 
     def get_trading_pair(self, symbol: str) -> str:
@@ -432,9 +414,11 @@ class BTCETH_CMC20_Trader:
 
     def execute_market_order(self, symbol: str, side: str, quantity: float, quote_currency: str = "USDC",
                              dry_run: bool = False) -> bool:
-        trade_logger.info(f"{'='*60}")
+        """Execute market order"""
+        trade_logger.info(f"{'=' * 60}")
         trade_logger.info(f"MARKET ORDER: {side} {quantity:.8f} {symbol} for {quote_currency}")
         trade_logger.info(f"Dry run: {dry_run}")
+
         try:
             if dry_run:
                 trade_logger.info(f"[DRY RUN] Would execute MARKET {side} {quantity} {symbol}")
@@ -445,11 +429,11 @@ class BTCETH_CMC20_Trader:
             info = self.client.get_symbol_info(pair)
 
             if not info:
-                print(f"❌ Символ {pair} не знайдено")
+                print(f"❌ Symbol {pair} not found")
                 return False
 
+            # Get LOT_SIZE filter
             step_size = None
-
             for f in info['filters']:
                 if f['filterType'] == 'LOT_SIZE':
                     step_size = float(f['stepSize'])
@@ -459,7 +443,7 @@ class BTCETH_CMC20_Trader:
                 precision = len(str(step_size).rstrip('0').split('.')[-1])
                 quantity = round(quantity, precision)
 
-            print(f"📊 Виконується {'КУПІВЛЯ' if side == 'BUY' else 'ПРОДАЖ'} {quantity} {symbol} (MARKET ORDER)...")
+            print(f"📊 Executing {'BUY' if side == 'BUY' else 'SELL'} {quantity} {symbol} (MARKET ORDER)...")
             trade_logger.info(f"Executing {side} order for {pair}, quantity={quantity}")
 
             if side == 'BUY':
@@ -467,48 +451,37 @@ class BTCETH_CMC20_Trader:
             else:
                 order = self.client.order_market_sell(symbol=pair, quantity=quantity)
 
-            trade_logger.info(f"[SUCCESS] Order executed successfully: {order['orderId']}")
-            trade_logger.info(f"  Executed quantity: {order['executedQty']} {symbol}")
-            trade_logger.info(f"  Quote quantity: {order['cummulativeQuoteQty']} {quote_currency}")
-            trade_logger.info(f"  Order details: {order}")
-
-            print(f"✅ Ордер виконано: {order['orderId']}")
-            print(f"   {'Куплено' if side == 'BUY' else 'Продано'}: {order['executedQty']} {symbol}")
-            print(f"   {'Витрачено' if side == 'BUY' else 'Отримано'}: {order['cummulativeQuoteQty']} {quote_currency}")
+            trade_logger.info(f"[SUCCESS] Order executed: {order['orderId']}")
+            print(f"✅ Order executed: {order['orderId']}")
             return True
 
         except BinanceAPIException as e:
             error_logger.error(f"[ERROR] Binance API error for {side} {symbol}: {e}")
-            error_logger.error(f"  Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
             error_logger.error(traceback.format_exc())
-            print(f"❌ Помилка ордеру {symbol}: {e}")
-            print(f"   Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
+            print(f"❌ Order error {symbol}: {e}")
             return False
         except Exception as e:
             error_logger.error(f"[ERROR] Unknown error in market order {side} {symbol}: {e}")
             error_logger.error(traceback.format_exc())
-            print(f"❌ Невідома помилка: {e}")
-            traceback.print_exc()
+            print(f"❌ Unknown error: {e}")
             return False
         finally:
-            trade_logger.info(f"{'='*60}")
+            trade_logger.info(f"{'=' * 60}")
 
     def execute_convert(self, from_asset: str, to_asset: str, amount: float, dry_run: bool = False) -> bool:
-        """Виконує конвертацію через Binance Convert API"""
-        trade_logger.info(f"{'='*60}")
+        """Execute conversion via Binance Convert API"""
+        trade_logger.info(f"{'=' * 60}")
         trade_logger.info(f"CONVERT: {amount:.8f} {from_asset} → {to_asset}")
         trade_logger.info(f"Dry run: {dry_run}")
+
         try:
             if dry_run:
                 trade_logger.info(f"[DRY RUN] Would convert {amount:.8f} {from_asset} → {to_asset}")
-                print(f"[DRY RUN] Конвертація {amount:.8f} {from_asset} → {to_asset}...")
+                print(f"[DRY RUN] Convert {amount:.8f} {from_asset} → {to_asset}...")
                 return True
 
-            print(f"🔄 Конвертація {amount:.8f} {from_asset} → {to_asset}...")
-            trade_logger.info(f"Executing convert operation...")
+            print(f"🔄 Converting {amount:.8f} {from_asset} → {to_asset}...")
 
-            # ⚠️ ВАЖЛИВО: Binance Convert API може мати інший метод залежно від версії бібліотеки
-            # Варіант 1: Для python-binance >= 1.0.16
             try:
                 result = self.client.convert_request_quote(
                     fromAsset=from_asset,
@@ -517,59 +490,40 @@ class BTCETH_CMC20_Trader:
                 )
 
                 if result and 'quoteId' in result:
-                    # Підтверджуємо конвертацію
                     confirm = self.client.convert_accept_quote(quoteId=result['quoteId'])
 
                     if confirm and confirm.get('status') == 'SUCCESS':
                         trade_logger.info(f"[SUCCESS] Convert executed successfully!")
-                        trade_logger.info(f"  Quote ID: {result['quoteId']}")
-                        trade_logger.info(f"  Converted: {amount} {from_asset}")
-                        trade_logger.info(f"  Received: {result.get('toAmount', 'N/A')} {to_asset}")
-                        print(f"✅ Конвертацію виконано успішно!")
-                        print(f"   Quote ID: {result['quoteId']}")
-                        print(f"   Конвертовано: {amount} {from_asset}")
-                        print(f"   Отримано: {result.get('toAmount', 'N/A')} {to_asset}")
+                        print(f"✅ Conversion completed!")
                         return True
                     else:
-                        error_logger.error("Convert confirmation failed")
-                        print(f"❌ Помилка підтвердження конвертації")
+                        print(f"❌ Conversion confirmation failed")
                         return False
             except AttributeError:
-                # Варіант 2: Для старіших версій або альтернативного API
-                print("⚠️ convert_request_quote недоступний, пробуємо convert_asset...")
                 result = self.client.convert_asset(
                     fromAsset=from_asset,
                     toAsset=to_asset,
                     fromAmount=amount
                 )
 
-            if result and result.get('orderId'):
-                print(f"✅ Конвертацію виконано успішно!")
-                print(f"   Order ID: {result['orderId']}")
-                print(f"   Конвертовано: {result.get('fromAmount', amount)} {from_asset}")
-                print(f"   Отримано: {result.get('toAmount', 'N/A')} {to_asset}")
-                return True
-            else:
-                print(f"❌ Помилка конвертації: невідома відповідь від API")
-                return False
+                if result and result.get('orderId'):
+                    print(f"✅ Conversion completed!")
+                    return True
+
+            return False
 
         except BinanceAPIException as e:
             error_logger.error(f"[ERROR] Binance API error converting {from_asset} -> {to_asset}: {e}")
-            error_logger.error(f"  Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
-            error_logger.error(f"  Error message: {e.message if hasattr(e, 'message') else str(e)}")
             error_logger.error(traceback.format_exc())
-            print(f"❌ Помилка конвертації {from_asset} → {to_asset}: {e}")
-            print(f"   Error code: {e.code if hasattr(e, 'code') else 'N/A'}")
-            print(f"   Error message: {e.message if hasattr(e, 'message') else str(e)}")
+            print(f"❌ Conversion error: {e}")
             return False
         except Exception as e:
-            error_logger.error(f"[ERROR] Unknown error converting {from_asset} -> {to_asset}: {e}")
+            error_logger.error(f"[ERROR] Unknown error converting: {e}")
             error_logger.error(traceback.format_exc())
-            print(f"❌ Невідома помилка конвертації: {e}")
-            traceback.print_exc()
+            print(f"❌ Unknown error: {e}")
             return False
         finally:
-            trade_logger.info(f"{'='*60}")
+            trade_logger.info(f"{'=' * 60}")
 
     def can_place_market_order(self, pair: str, quantity: float, value: float) -> tuple:
         """
@@ -675,14 +629,16 @@ class BTCETH_CMC20_Trader:
     def calculate_rebalancing_orders(self, current_balances: dict, target_allocation: dict,
                                      total_portfolio_value: float) -> dict:
         """
-        ПОКРАЩЕНА логіка розрахунку з автоматичним вибором методу
+        IMPROVED: Calculate operations to match EXACT CMC allocation
+        SELLS ALL tokens not in target_allocation
+        BUYS ONLY tokens in target_allocation to match weights
         """
         operations = {
             'sell_orders': {},
             'sell_convert': {},
             'buy_orders': {},
             'buy_convert': {},
-            'dust_to_convert': {}  # NEW: малі залишки для конвертації
+            'tokens_to_remove': []  # NEW: Track tokens to completely remove
         }
 
         FEE_RESERVE = 0.01
@@ -705,69 +661,109 @@ class BTCETH_CMC20_Trader:
         if not quote_currency:
             quote_currency = 'USDC'
 
-        print(f"💰 Quote currency: {quote_currency}, баланс: ${quote_balance:.2f}")
+        print(f"💰 Quote currency: {quote_currency}, баланс: ${quote_balance:.2f}\n")
+
+        # Get list of target symbols (what we WANT to have)
+        target_symbols = set(target_allocation.keys())
+        print(f"🎯 Target tokens: {', '.join(sorted(target_symbols))}")
+
+        # Get list of current symbols (what we HAVE now)
+        current_symbols = set(current_balances.keys()) - set(self.stablecoins)
+        print(f"📦 Current tokens: {', '.join(sorted(current_symbols))}\n")
+
+        # NEW: Find tokens to REMOVE (in portfolio but NOT in target)
+        tokens_to_remove = current_symbols - target_symbols
+
+        if tokens_to_remove:
+            print(f"🗑️ Tokens to REMOVE (not in target index):")
+            for symbol in sorted(tokens_to_remove):
+                current_value = current_balances.get(symbol, {}).get('usdc_value', 0)
+                current_quantity = current_balances.get(symbol, {}).get('total', 0)
+                print(f"   ❌ {symbol}: {current_quantity:.8f} (${current_value:.2f})")
+                operations['tokens_to_remove'].append({
+                    'symbol': symbol,
+                    'quantity': current_quantity,
+                    'value': current_value
+                })
+            print()
 
         total_sell_value = 0
-        dust_balances = {}  # Collect dust
 
-        # PHASE 1: Calculate SELLS
-        for symbol, target_data in target_allocation.items():
+        # PHASE 1: SELL everything NOT in target + SELL excess of tokens that ARE in target
+        print("📤 PHASE 1: ПРОДАЖ")
+        print("-" * 80)
+
+        for symbol in current_symbols:
             current_value = current_balances.get(symbol, {}).get('usdc_value', 0)
             current_quantity = current_balances.get(symbol, {}).get('total', 0)
-            target_value = target_data['target_value']
-            difference_value = target_value - current_value
 
-            if abs(difference_value) < 0.5:  # Skip very small differences
-                continue
+            # Check if token should be in portfolio
+            if symbol not in target_symbols:
+                # SELL EVERYTHING - token not in target index
+                sell_value = current_value
+                quantity = current_quantity
 
+                if sell_value < 0.1:
+                    continue  # Skip dust
+
+                print(f"🗑️ REMOVE {symbol}: {quantity:.8f} (${sell_value:.2f}) - NOT IN INDEX")
+
+            else:
+                # Token IS in target - check if we need to reduce position
+                target_value = target_allocation[symbol]['target_value']
+                difference_value = target_value - current_value
+
+                if difference_value >= -0.5:  # No need to sell
+                    continue
+
+                sell_value = abs(difference_value)
+                quantity = sell_value / self.get_binance_price(symbol)
+
+                print(f"🔻 REDUCE {symbol}: {quantity:.8f} (${sell_value:.2f})")
+
+            # Decide: market order or convert
             price = self.get_binance_price(symbol)
             if price == 0:
                 continue
 
-            # SELL operations
-            if difference_value < 0:
-                sell_value = abs(difference_value)
-                quantity = sell_value / price
-                total_sell_value += sell_value
+            total_sell_value += sell_value
 
-                pair = f"{symbol}{quote_currency}"
-                can_place, reason, details = self.can_place_market_order(pair, quantity, sell_value)
+            pair = f"{symbol}{quote_currency}"
+            can_place, reason, details = self.can_place_market_order(pair, quantity, sell_value)
 
-                # Decision: market order or convert?
-                if sell_value >= self.min_trade_threshold and can_place:
-                    operations['sell_orders'][symbol] = {
-                        'quantity': quantity,
-                        'value_usdc': sell_value,
-                        'price': price,
-                        'quote_currency': quote_currency,
-                        'reason': reason
-                    }
-                    print(f"🔴 MARKET SELL {symbol}: {quantity:,.8f} (${sell_value:,.2f})")
-                else:
-                    # Use convert for values >= $5 that can't use market order
-                    # OR values < $5
-                    if sell_value >= self.min_trade_threshold:
-                        print(f"🟠 CONVERT {symbol}→{quote_currency}: ${sell_value:,.2f} (причина: {reason})")
-                    else:
-                        print(f"🧹 DUST {symbol}: ${sell_value:,.2f} (буде конвертовано)")
-                        dust_balances[symbol] = current_quantity
-
-                    operations['sell_convert'][symbol] = {
-                        'from_asset': symbol,
-                        'to_asset': quote_currency,
-                        'amount': current_quantity,
-                        'value': sell_value,
-                        'type': 'convert',
-                        'reason': reason,
-                        'is_dust': sell_value < self.min_trade_threshold
-                    }
+            if sell_value >= self.min_trade_threshold and can_place:
+                operations['sell_orders'][symbol] = {
+                    'quantity': quantity,
+                    'value_usdc': sell_value,
+                    'price': price,
+                    'quote_currency': quote_currency,
+                    'reason': reason,
+                    'is_removal': symbol not in target_symbols
+                }
+                print(f"   → MARKET SELL")
+            else:
+                operations['sell_convert'][symbol] = {
+                    'from_asset': symbol,
+                    'to_asset': quote_currency,
+                    'amount': current_quantity,
+                    'value': sell_value,
+                    'type': 'convert',
+                    'reason': reason,
+                    'is_dust': sell_value < self.min_trade_threshold,
+                    'is_removal': symbol not in target_symbols
+                }
+                print(f"   → CONVERT (reason: {reason})")
 
         # Calculate available balance after sells
         available_after_sell = quote_balance + (total_sell_value * (1 - FEE_RESERVE))
 
         print(f"\n💰 Баланс після продажу: ${available_after_sell:.2f}")
+        print()
 
-        # PHASE 2: Calculate BUYS
+        # PHASE 2: BUY all tokens in target allocation
+        print("📥 PHASE 2: КУПІВЛЯ")
+        print("-" * 80)
+
         buy_operations_temp = []
 
         for symbol, target_data in target_allocation.items():
@@ -775,7 +771,7 @@ class BTCETH_CMC20_Trader:
             target_value = target_data['target_value']
             difference_value = target_value - current_value
 
-            if difference_value <= 0.5:
+            if difference_value <= 0.5:  # Already have enough
                 continue
 
             price = self.get_binance_price(symbol)
@@ -791,13 +787,20 @@ class BTCETH_CMC20_Trader:
                 'needed_usdc': needed_usdc,
                 'difference_value': difference_value,
                 'price': price,
-                'priority': target_data.get('rank', 999)
+                'priority': target_data.get('rank', 999),
+                'target_weight': target_data['weight']
             })
 
-        # Sort by priority
+            print(f"🔼 {symbol}: target ${target_value:.2f} (weight {target_data['weight']:.2f}%), "
+                  f"current ${current_value:.2f}, need ${difference_value:.2f}")
+
+        # Sort by priority (rank)
         buy_operations_temp.sort(key=lambda x: x['priority'])
 
-        # PHASE 3: Allocate buys
+        print(f"\n💵 Доступно для купівлі: ${available_after_sell:.2f}")
+        print()
+
+        # PHASE 3: Allocate buys with available funds
         remaining_balance = available_after_sell - MIN_USDC_RESERVE
 
         for op in buy_operations_temp:
@@ -809,6 +812,7 @@ class BTCETH_CMC20_Trader:
                     print(f"⚠️ Пропуск {symbol}: недостатньо коштів")
                     continue
 
+                # Scale down to available funds
                 scale_factor = remaining_balance / needed
                 op['needed_usdc'] = remaining_balance
                 op['difference_value'] = op['difference_value'] * scale_factor
@@ -819,49 +823,54 @@ class BTCETH_CMC20_Trader:
                 pair, op['quantity'], op['difference_value']
             )
 
-            # Decision: market order or convert?
+            # Decision: market order or convert
             if op['difference_value'] >= self.min_trade_threshold and can_place:
                 operations['buy_orders'][symbol] = {
                     'quantity': op['quantity'],
                     'value_usdc': op['difference_value'],
                     'price': op['price'],
                     'quote_currency': quote_currency,
-                    'reason': reason
+                    'reason': reason,
+                    'target_weight': op['target_weight']
                 }
                 print(f"🟢 MARKET BUY {symbol}: {op['quantity']:,.8f} (${op['difference_value']:,.2f})")
             else:
-                if op['difference_value'] >= self.min_trade_threshold:
-                    print(f"🔵 CONVERT {quote_currency}→{symbol}: ${op['difference_value']:,.2f} (причина: {reason})")
-                else:
-                    print(f"🔵 CONVERT {quote_currency}→{symbol}: ${op['difference_value']:,.2f} (< порогу)")
-
                 operations['buy_convert'][symbol] = {
                     'from_asset': quote_currency,
                     'to_asset': symbol,
                     'amount': op['difference_value'],
                     'type': 'convert',
-                    'reason': reason
+                    'reason': reason,
+                    'target_weight': op['target_weight']
                 }
+                print(f"🔵 CONVERT {quote_currency}→{symbol}: ${op['difference_value']:,.2f}")
 
             remaining_balance -= op['needed_usdc']
 
-        # Store dust for later conversion
-        if dust_balances:
-            operations['dust_to_convert'] = dust_balances
-
         print("-" * 80)
+        print(f"\n📊 Summary:")
+        print(f"   Tokens to remove: {len(tokens_to_remove)}")
+        print(f"   Sell operations: {len(operations['sell_orders']) + len(operations['sell_convert'])}")
+        print(f"   Buy operations: {len(operations['buy_orders']) + len(operations['buy_convert'])}")
+        print(f"   Remaining balance: ${remaining_balance:.2f}")
+
         return operations
 
-    def execute_portfolio_rebalance(self, dry_run=False):
+    def execute_portfolio_rebalance(self, dry_run=False, index_base='cmc20', index_type='top2'):
         """
-        ПОКРАЩЕНЕ виконання ребалансування з конвертацією залишків
+        Execute portfolio rebalancing based on selected index
+
+        Args:
+            dry_run: Test mode (no real trades)
+            index_base: 'cmc20' or 'cmc100'
+            index_type: 'top2', 'top5', ..., 'top100'
         """
         trade_logger.info("=" * 80)
-        trade_logger.info(f"[START] REBALANCE - Index: {self.index_type}, Dry run: {dry_run}")
+        trade_logger.info(f"[START] REBALANCE - Base: {index_base}, Type: {index_type}, Dry run: {dry_run}")
         trade_logger.info("=" * 80)
 
-        print(f"\n🚀 РЕБАЛАНСУВАННЯ ({self.index_type})")
-        print(f"⚠️ Режим: {'DRY RUN' if dry_run else '🔴 LIVE'}")
+        print(f"\n🚀 REBALANCING ({index_base.upper()} - {index_type.upper()})")
+        print(f"⚠️ Mode: {'DRY RUN' if dry_run else '🔴 LIVE'}")
         print("=" * 80)
 
         # Get current state
@@ -871,175 +880,166 @@ class BTCETH_CMC20_Trader:
             return {"error": "Portfolio empty"}
 
         # Get target allocation based on selected index
-        target_allocation = self.get_btc_eth_allocation_from_cmc()
+        target_allocation = self.get_allocation_from_cmc(index_base, index_type)
 
         if not target_allocation:
             return {"error": "Failed to fetch CMC data"}
 
-        # Calculate target values
+        # Calculate target values for each asset
         for symbol, data in target_allocation.items():
             data['target_value'] = total_portfolio_value * (data['weight'] / 100)
 
-        # Calculate operations
-        operations = self.calculate_rebalancing_orders(
-            current_balances, target_allocation, total_portfolio_value
-        )
+        # Display rebalancing plan
+        print("\n⚖️ REBALANCING PLAN")
+        print("=" * 120)
+        print(
+            f"{'Asset':^8} | {'Current $':>14} | {'Current %':>11} | {'Target $':>14} | {'Target %':>11} | {'Difference $':>14} | {'Action':^15}")
+        print("-" * 120)
+
+        operations = {'sell': [], 'buy': [], 'convert': []}
+
+        for symbol, target_data in target_allocation.items():
+            current_value = current_balances.get(symbol, {}).get('usdc_value', 0)
+            current_percent = (current_value / total_portfolio_value * 100) if total_portfolio_value > 0 else 0
+            target_value = target_data['target_value']
+            target_percent = target_data['weight']
+            difference = target_value - current_value
+
+            action = "✓ OK" if abs(difference) < 1 else ("🟢 BUY" if difference > 0 else "🔴 SELL")
+
+            print(f"{symbol:^8} | ${current_value:>12,.2f} | {current_percent:>10.2f}% | "
+                  f"${target_value:>12,.2f} | {target_percent:>10.2f}% | "
+                  f"${difference:>+12,.2f} | {action:^15}")
+
+            # Store operations
+            if abs(difference) >= 1:
+                if difference < 0:
+                    operations['sell'].append({
+                        'symbol': symbol,
+                        'amount': abs(difference),
+                        'current_qty': current_balances.get(symbol, {}).get('total', 0)
+                    })
+                else:
+                    operations['buy'].append({
+                        'symbol': symbol,
+                        'amount': difference
+                    })
+
+        print("=" * 120)
 
         if dry_run:
             return {
                 "status": "dry_run",
                 "operations": operations,
-                "index_type": self.index_type
+                "index_base": index_base,
+                "index_type": index_type
             }
 
-        # Execute operations
-        results = {
-            "sell_orders": [],
-            "sell_convert": [],
-            "buy_orders": [],
-            "buy_convert": [],
-            "dust_conversion": {}
-        }
+        # Execute rebalancing
+        print("\n📤 EXECUTING REBALANCING")
+        print("=" * 80)
 
-        # PHASE 1: SELLS
-        if operations['sell_orders'] or operations['sell_convert']:
-            print("\n📤 ФАЗА 1: ПРОДАЖ")
-            print("=" * 80)
-
-            for symbol, data in operations['sell_orders'].items():
-                success = self.execute_market_order(
-                    symbol=symbol,
-                    side='SELL',
-                    quantity=data['quantity'],
-                    quote_currency=data['quote_currency'],
-                    dry_run=False
-                )
-                results['sell_orders'].append({
-                    "symbol": symbol,
-                    "success": success,
-                    "quantity": data['quantity']
-                })
-                if success:
-                    time.sleep(1)
-
-            for symbol, data in operations['sell_convert'].items():
-                if not data.get('is_dust'):  # Process non-dust converts now
-                    success = self.execute_convert(
-                        from_asset=data['from_asset'],
-                        to_asset=data['to_asset'],
-                        amount=data['amount'],
-                        dry_run=False
-                    )
-                    results['sell_convert'].append({
-                        "symbol": symbol,
-                        "success": success
-                    })
-                    if success:
-                        time.sleep(2)
-
-        # PHASE 1.5: Update balance
-        time.sleep(2)
-        current_balances, _ = self.get_all_binance_balances()
-
+        # Determine quote currency
         quote_currency = 'USDC'
         for stable in ['USDC', 'USDT', 'BUSD', 'FDUSD']:
             if current_balances.get(stable, {}).get('total', 0) > 0.1:
                 quote_currency = stable
                 break
 
-        available_balance = current_balances.get(quote_currency, {}).get('total', 0)
-        print(f"\n💰 Доступно після продажу: ${available_balance:.2f} {quote_currency}")
+        results = {'sells': [], 'buys': []}
 
-        # PHASE 2: BUYS
-        if operations['buy_orders'] or operations['buy_convert']:
-            print("\n📥 ФАЗА 2: КУПІВЛЯ")
-            print("=" * 80)
+        # PHASE 1: SELLS
+        if operations['sell']:
+            print("\n🔴 PHASE 1: SELLING")
+            for op in operations['sell']:
+                symbol = op['symbol']
+                sell_value = op['amount']
+                quantity = op['current_qty']
 
-            for symbol, data in operations['buy_orders'].items():
-                needed = data['value_usdc'] * 1.01
-
-                if needed > available_balance:
-                    print(f"⚠️ Пропуск {symbol}: недостатньо коштів")
+                if quantity == 0:
                     continue
+
+                # Try to sell via market order or convert
+                pair = f"{symbol}{quote_currency}"
 
                 success = self.execute_market_order(
                     symbol=symbol,
-                    side='BUY',
-                    quantity=data['quantity'],
-                    quote_currency=data['quote_currency'],
+                    side='SELL',
+                    quantity=quantity,
+                    quote_currency=quote_currency,
                     dry_run=False
                 )
 
+                if not success:
+                    # Try convert instead
+                    success = self.execute_convert(
+                        from_asset=symbol,
+                        to_asset=quote_currency,
+                        amount=quantity,
+                        dry_run=False
+                    )
+
+                results['sells'].append({'symbol': symbol, 'success': success})
+
                 if success:
-                    available_balance -= needed
                     time.sleep(1)
 
-                results['buy_orders'].append({
-                    "symbol": symbol,
-                    "success": success
-                })
+        # Update balances after sells
+        time.sleep(2)
+        current_balances, _ = self.get_all_binance_balances()
+        available_balance = current_balances.get(quote_currency, {}).get('total', 0)
 
-            for symbol, data in operations['buy_convert'].items():
-                needed = data['amount'] * 1.01
+        print(f"\n💰 Available after sells: ${available_balance:.2f} {quote_currency}")
 
-                if needed > available_balance:
-                    print(f"⚠️ Пропуск {symbol}: недостатньо коштів")
+        # PHASE 2: BUYS
+        if operations['buy']:
+            print("\n🟢 PHASE 2: BUYING")
+            for op in operations['buy']:
+                symbol = op['symbol']
+                buy_value = op['amount']
+
+                if buy_value > available_balance:
+                    print(f"⚠️ Skipping {symbol}: insufficient funds")
                     continue
 
-                success = self.execute_convert(
-                    from_asset=data['from_asset'],
-                    to_asset=data['to_asset'],
-                    amount=data['amount'],
+                price = self.get_binance_price(symbol)
+                if price == 0:
+                    continue
+
+                quantity = buy_value / price
+
+                # Try to buy via market order or convert
+                success = self.execute_market_order(
+                    symbol=symbol,
+                    side='BUY',
+                    quantity=quantity,
+                    quote_currency=quote_currency,
                     dry_run=False
                 )
 
+                if not success:
+                    # Try convert instead
+                    success = self.execute_convert(
+                        from_asset=quote_currency,
+                        to_asset=symbol,
+                        amount=buy_value,
+                        dry_run=False
+                    )
+
+                results['buys'].append({'symbol': symbol, 'success': success})
+
                 if success:
-                    available_balance -= needed
-                    time.sleep(2)
+                    available_balance -= buy_value * 1.01  # Account for fees
+                    time.sleep(1)
 
-                results['buy_convert'].append({
-                    "symbol": symbol,
-                    "success": success
-                })
-
-        # PHASE 3: Convert dust to larger positions
-        if operations.get('dust_to_convert') and self.auto_convert_dust:
-            print("\n🧹 ФАЗА 3: КОНВЕРТАЦІЯ ЗАЛИШКІВ")
-            print("=" * 80)
-
-            # Determine which asset has lower allocation (needs more)
-            current_btc = current_balances.get('BTC', {}).get('usdc_value', 0)
-            current_eth = current_balances.get('ETH', {}).get('usdc_value', 0)
-            target_btc = target_allocation['BTC']['target_value']
-            target_eth = target_allocation['ETH']['target_value']
-
-            btc_shortage = target_btc - current_btc
-            eth_shortage = target_eth - current_eth
-
-            # Convert to the asset with bigger shortage
-            target_for_dust = 'BTC' if btc_shortage > eth_shortage else 'ETH'
-
-            print(f"🎯 Залишки конвертуються в {target_for_dust}")
-            print(f"   BTC дефіцит: ${btc_shortage:.2f}")
-            print(f"   ETH дефіцит: ${eth_shortage:.2f}")
-
-            dust_results = self.convert_dust_to_target(
-                operations['dust_to_convert'],
-                target_for_dust,
-                quote_currency
-            )
-
-            results['dust_conversion'] = dust_results
-
-        # Final summary
-        print("\n✅ РЕБАЛАНСУВАННЯ ЗАВЕРШЕНО")
-        print(f"💰 Кінцевий баланс {quote_currency}: ${available_balance:.2f}")
+        print("\n✅ REBALANCING COMPLETED")
         print("=" * 80)
 
         return {
             "status": "completed",
             "results": results,
-            "index_type": self.index_type,
+            "index_base": index_base,
+            "index_type": index_type,
             "timestamp": datetime.now().isoformat()
         }
 
